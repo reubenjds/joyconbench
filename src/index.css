@@ -19,6 +19,8 @@
   --red: #e4002b;
   --red-soft: #fff2f4;
   --blue: #002fa7;
+  --joycon-left: #00c3e3;
+  --joycon-right: #ff4554;
 }
 
 * {
@@ -96,10 +98,10 @@ a {
 .brand-icon i {
   width: 50%;
   position: relative;
-  background: var(--blue);
+  background: var(--joycon-left);
 }
 .brand-icon i:last-child {
-  background: var(--red);
+  background: var(--joycon-right);
 }
 .brand-icon i::after {
   content: '';
