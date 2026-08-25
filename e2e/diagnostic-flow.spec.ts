@@ -89,6 +89,7 @@ test('connects a mocked Pro Controller directly into the button playground', asy
   });
 
   await page.goto('/');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/icon.svg');
   await expect(
     page.getByRole('heading', { name: /See exactly what your controller/i })
   ).toBeVisible();
