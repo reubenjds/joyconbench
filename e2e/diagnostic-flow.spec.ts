@@ -105,8 +105,17 @@ test('connects a mocked Pro Controller directly into the button playground', asy
     .getByRole('navigation', { name: 'Workbench' })
     .getByRole('button', { name: 'Controller tools' })
     .click();
+  const toolsEyebrow = page.getByText('Persistent tools', { exact: true });
+  const toolsHeading = page.getByRole('heading', { name: 'Controller settings' });
+  const eyebrowBox = await toolsEyebrow.boundingBox();
+  const headingBox = await toolsHeading.boundingBox();
+  expect(eyebrowBox).not.toBeNull();
+  expect(headingBox).not.toBeNull();
+  expect(eyebrowBox!.y).toBeLessThan(headingBox!.y);
   await expect(page.getByText('Retail colours')).toBeVisible();
   await expect(page.getByRole('status')).toContainText('Complete');
+  await expect(page.getByRole('status')).toHaveClass(/tool-status-complete/);
+  await expect(page.locator('.tool-status-dot')).toHaveCSS('background-color', 'rgb(22, 131, 79)');
   await expect(page.getByRole('status')).toContainText('loaded automatically on connection');
   await expect(page.getByLabel('Body')).toHaveValue('#6a4bc3');
   await expect(page.getByLabel('Buttons')).toHaveValue('#21162f');
@@ -153,7 +162,9 @@ test('informational layout has no horizontal overflow at a narrow width', async 
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
 });
 
-test('connected joystick layout has no horizontal overflow at a narrow width', async ({ page }) => {
+test('connected workbench layouts have no horizontal overflow at a narrow width', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Connect controller' }).click();
@@ -164,4 +175,15 @@ test('connected joystick layout has no horizontal overflow at a narrow width', a
     clientWidth: document.documentElement.clientWidth,
   }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+
+  await page
+    .getByRole('navigation', { name: 'Workbench' })
+    .getByRole('button', { name: 'Controller tools' })
+    .click();
+  await expect(page.getByText('Retail colours')).toBeVisible();
+  const toolsDimensions = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(toolsDimensions.scrollWidth).toBeLessThanOrEqual(toolsDimensions.clientWidth);
 });

@@ -343,11 +343,12 @@ export default function App() {
         )}
 
         {identity && view === 'tools' && (
-          <PageFrame eyebrow="Persistent tools" title="Controller settings">
-            <p className="page-lede">
-              Fast, narrowly scoped tools for documented controller settings—not a full flash
-              editor.
-            </p>
+          <PageFrame
+            eyebrow="Persistent tools"
+            title="Controller settings"
+            lede="Fast, narrowly scoped tools for documented controller settings—not a full flash editor."
+            className="tools-page-heading"
+          >
             <ControllerTools
               adapter={controller.adapter}
               identity={identity}
@@ -876,17 +877,33 @@ function ReportView({
 function PageFrame({
   eyebrow,
   title,
+  lede,
+  className = '',
   children,
 }: {
   eyebrow: string;
   title: string;
+  lede?: string;
+  className?: string;
   children: ReactNode;
 }) {
   return (
     <>
-      <div className="page-heading">
-        <span className="comic-kicker">{eyebrow}</span>
-        <h1>{title}</h1>
+      <div className={`page-heading ${className}`.trim()}>
+        {lede ? (
+          <>
+            <div>
+              <span className="comic-kicker">{eyebrow}</span>
+              <h1>{title}</h1>
+            </div>
+            <p className="page-lede">{lede}</p>
+          </>
+        ) : (
+          <>
+            <span className="comic-kicker">{eyebrow}</span>
+            <h1>{title}</h1>
+          </>
+        )}
       </div>
       {children}
     </>
