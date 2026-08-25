@@ -42,11 +42,11 @@ patterns, not confirmed hardware faults.
 
 ## Credits
 
-- [Nintendo Switch Reverse Engineering](https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering) — protocol, calibration, motion, and rumble research
-- [Joy-Con WebHID](https://github.com/tomayac/joy-con-webhid) — WebHID implementation reference
-- [Joy-Con Toolkit](https://github.com/CTCaer/jc_toolkit) — inspiration for testing and controller settings tools
-- [Nintendo Switch Brew: Joy-Con](https://switchbrew.org/wiki/Joy-Con) — controller and retail colour documentation
-- [WebHID specification](https://wicg.github.io/webhid/) — browser API reference
+- [Nintendo Switch Reverse Engineering](https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering): protocol, calibration, motion, and rumble research
+- [Joy-Con WebHID](https://github.com/tomayac/joy-con-webhid): WebHID implementation reference
+- [Joy-Con Toolkit](https://github.com/CTCaer/jc_toolkit): inspiration for testing and controller settings tools
+- [Nintendo Switch Brew: Joy-Con](https://switchbrew.org/wiki/Joy-Con): controller and retail colour documentation
+- [WebHID specification](https://wicg.github.io/webhid/): browser API reference
 
 Controller artwork is adapted from
 [Nintendo Switch Joy-Con illustration.svg](https://commons.wikimedia.org/wiki/File:Nintendo_Switch_Joy-Con_illustration.svg)

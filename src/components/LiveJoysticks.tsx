@@ -94,10 +94,10 @@ function StickMonitor({
         </svg>
 
         <dl className="joystick-values">
-          <Value label="X" value={normalized ? signed(normalized.x) : '—'} />
-          <Value label="Y" value={normalized ? signed(normalized.y) : '—'} />
-          <Value label="Raw X" value={raw ? String(Math.round(raw.x)) : '—'} />
-          <Value label="Raw Y" value={raw ? String(Math.round(raw.y)) : '—'} />
+          <Value label="X" value={normalized ? signed(normalized.x) : 'N/A'} />
+          <Value label="Y" value={normalized ? signed(normalized.y) : 'N/A'} />
+          <Value label="Raw X" value={raw ? String(Math.round(raw.x)) : 'N/A'} />
+          <Value label="Raw Y" value={raw ? String(Math.round(raw.y)) : 'N/A'} />
         </dl>
       </div>
     </article>

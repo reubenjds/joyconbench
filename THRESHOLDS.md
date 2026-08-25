@@ -1,7 +1,7 @@
 # Diagnostic threshold profile
 
 JoyConBench uses the versioned `research-1` profile to turn complete captures into `pass` or
-`potential-issue` results. These are practical, research-based reference ranges—not Nintendo service
+`potential-issue` results. These are practical, research-based reference ranges, not Nintendo service
 limits and not proof of a hardware fault. A test remains `inconclusive` when it does not capture
 enough usable input.
 

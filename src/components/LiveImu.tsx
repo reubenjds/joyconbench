@@ -148,5 +148,5 @@ function vectorPoint(vector: Vector3, scale: number) {
 }
 
 function formatReading(value: number | undefined, unit: string) {
-  return value === undefined ? '—' : `${value.toFixed(2)} ${unit}`;
+  return value === undefined ? 'N/A' : `${value.toFixed(2)} ${unit}`;
 }

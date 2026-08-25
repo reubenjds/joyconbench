@@ -46,7 +46,7 @@ const TESTS: TestDefinition[] = [
     number: '01',
     title: 'Stick drift',
     short: 'Neutral test',
-    description: 'Measure neutral offset and jitter—the quickest check for unwanted movement.',
+    description: 'Measure neutral offset and jitter: the quickest check for unwanted movement.',
     duration: 5000,
     action: 'Run 5-second drift check',
     featured: true,
@@ -350,7 +350,7 @@ export default function App() {
           <PageFrame
             eyebrow="Persistent tools"
             title="Controller settings"
-            lede="Fast, narrowly scoped tools for documented controller settings—not a full flash editor."
+            lede="Fast, narrowly scoped tools for documented controller settings, not a full flash editor."
             className="tools-page-heading"
           >
             <ControllerTools
@@ -547,7 +547,7 @@ function BenchView({
           <h1>Button test</h1>
         </div>
         <p>
-          The controller drawing reacts live. This button check is always ready—no timer and no
+          The controller drawing reacts live. This button check is always ready, with no timer or
           forced tour.
         </p>
       </div>
@@ -839,7 +839,7 @@ function ReportView({
       <div className="report-layout">
         <Panel className="report-privacy color-red">
           <span className="sticker">Privacy-safe</span>
-          <h2>Share the measurements—not the controller.</h2>
+          <h2>Share the measurements, not the controller.</h2>
           <ul>
             <li>No MAC address or serial</li>
             <li>No raw packets or sample streams</li>
@@ -946,11 +946,11 @@ function ProtocolLab({
         </div>
         <div>
           <dt>Packet counter</dt>
-          <dd>{latest?.packetCounter ?? '—'}</dd>
+          <dd>{latest?.packetCounter ?? 'N/A'}</dd>
         </div>
         <div>
           <dt>IMU frames/report</dt>
-          <dd>{latest?.imuFrames.length ?? '—'}</dd>
+          <dd>{latest?.imuFrames.length ?? 'N/A'}</dd>
         </div>
       </dl>
     </Panel>
