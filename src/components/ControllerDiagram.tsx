@@ -121,6 +121,7 @@ export function ControllerDiagram({
                 <path d="M165 58v384" />
                 <circle className="rail-sync" cx="168" cy="113" r="3" />
                 <rect
+                  data-button="slLeft"
                   className={active(buttons, 'slLeft') ? 'rail-button active' : 'rail-button'}
                   x="162"
                   y="188"
@@ -132,6 +133,7 @@ export function ControllerDiagram({
                   SL
                 </text>
                 <rect
+                  data-button="srLeft"
                   className={active(buttons, 'srLeft') ? 'rail-button active' : 'rail-button'}
                   x="162"
                   y="263"
@@ -159,7 +161,8 @@ export function ControllerDiagram({
                 <path d="M15 58v384" />
                 <circle className="rail-sync" cx="12" cy="113" r="3" />
                 <rect
-                  className={active(buttons, 'slRight') ? 'rail-button active' : 'rail-button'}
+                  data-button="srRight"
+                  className={active(buttons, 'srRight') ? 'rail-button active' : 'rail-button'}
                   x="7"
                   y="188"
                   width="11"
@@ -167,10 +170,11 @@ export function ControllerDiagram({
                   rx="5"
                 />
                 <text x="12.5" y="213" textAnchor="middle" transform="rotate(-90 12.5 213)">
-                  SL
+                  SR
                 </text>
                 <rect
-                  className={active(buttons, 'srRight') ? 'rail-button active' : 'rail-button'}
+                  data-button="slRight"
+                  className={active(buttons, 'slRight') ? 'rail-button active' : 'rail-button'}
                   x="7"
                   y="263"
                   width="11"
@@ -178,7 +182,7 @@ export function ControllerDiagram({
                   rx="5"
                 />
                 <text x="12.5" y="288" textAnchor="middle" transform="rotate(-90 12.5 288)">
-                  SR
+                  SL
                 </text>
               </g>
             </>
