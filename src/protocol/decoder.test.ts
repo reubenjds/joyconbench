@@ -18,6 +18,9 @@ describe('Nintendo report decoder', () => {
     setStick(bytes, 5, 2048, 2048);
     setStick(bytes, 8, 4095, 0);
     bytes[12] = 0x10;
+    new DataView(bytes.buffer).setInt16(18, 1000, true);
+    new DataView(bytes.buffer).setInt16(20, -500, true);
+    new DataView(bytes.buffer).setInt16(22, 250, true);
     const sample = decodeStandardFullReport(
       0x30,
       new DataView(bytes.buffer),
@@ -37,6 +40,9 @@ describe('Nintendo report decoder', () => {
     expect(sample.sticks.right?.x).toBe(1);
     expect(sample.sticks.right?.y).toBe(-1);
     expect(sample.imuFrames).toHaveLength(3);
+    expect(sample.imuFrames[0].gyroscope.x).toBeCloseTo(61.03, 2);
+    expect(sample.imuFrames[0].gyroscope.y).toBeCloseTo(-30.515, 3);
+    expect(sample.imuFrames[0].gyroscope.z).toBeCloseTo(15.2575, 3);
   });
 
   it('rejects malformed reports', () => {

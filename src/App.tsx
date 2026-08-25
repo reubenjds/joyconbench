@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { CaptureCountdown } from './components/CaptureCountdown';
 import { ControllerDiagram } from './components/ControllerDiagram';
 import { ControllerTools } from './components/ControllerTools';
+import { LiveImu } from './components/LiveImu';
 import { LiveJoysticks } from './components/LiveJoysticks';
 import { LivePlot } from './components/LivePlot';
 import { Button, Modal, Panel, StatusLabel } from './components/ui';
@@ -71,20 +72,20 @@ const TESTS: TestDefinition[] = [
   {
     id: 'stationary',
     number: '04',
-    title: 'IMU at rest',
+    title: 'Gyroscope at rest',
     short: 'Sensor noise',
-    description: 'Measure gyroscope bias and noise while the controller stays still.',
+    description: 'Read all three gyroscope axes and measure bias and noise while it stays still.',
     duration: 5000,
-    action: 'Capture stationary IMU',
+    action: 'Capture stationary gyro',
   },
   {
     id: 'motion',
     number: '05',
-    title: 'Motion axes',
+    title: 'Gyroscope axes',
     short: 'Axis response',
-    description: 'Rotate around every physical axis and confirm all sensors respond.',
+    description: 'Rotate around X, Y, and Z and confirm each gyroscope axis responds.',
     duration: 10000,
-    action: 'Capture motion axes',
+    action: 'Capture gyro axes',
   },
   {
     id: 'packets',
@@ -649,6 +650,7 @@ function TestView({
   onRun: () => void;
   onBack: () => void;
 }) {
+  const isImuTest = test.id === 'stationary' || test.id === 'motion';
   return (
     <PageFrame eyebrow={`Test ${test.number} · ${test.short}`} title={test.title}>
       <div className="capture-instruction">
@@ -666,10 +668,12 @@ function TestView({
           Result saved. Run it again or choose another test.
         </div>
       )}
-      <div className="live-field">
-        {sticks.map((stick) => (
-          <LivePlot key={stick} samples={samples} stick={stick} />
-        ))}
+      <div className={`live-field ${isImuTest ? 'imu-field' : ''}`.trim()}>
+        {isImuTest ? (
+          <LiveImu samples={samples} />
+        ) : (
+          sticks.map((stick) => <LivePlot key={stick} samples={samples} stick={stick} />)
+        )}
       </div>
       <div className="page-actions">
         <Button className="button-secondary" onClick={onBack} disabled={running}>
@@ -1006,8 +1010,8 @@ function instructionTitle(id: TestDefinition['id']) {
   if (id === 'drift') return 'Put it down. Don’t touch the sticks.';
   if (id === 'range') return 'Three slow circles around the edge.';
   if (id === 'snapback') return 'Flick, release, repeat in four directions.';
-  if (id === 'stationary') return 'Flat surface. Absolutely still.';
-  if (id === 'motion') return 'Pitch, roll, then turn.';
+  if (id === 'stationary') return 'Set it flat and keep it completely still.';
+  if (id === 'motion') return 'Rotate around X, Y, then Z.';
   return 'Keep it connected and awake.';
 }
 

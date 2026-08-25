@@ -7,6 +7,7 @@ import {
   analyzeNeutral,
   analyzePackets,
   analyzeRange,
+  analyzeStationaryImu,
 } from './calculations';
 
 function sample(index: number, x = 0, y = 0): ControllerSample {
@@ -57,6 +58,13 @@ describe('diagnostic calculations', () => {
   it('confirms all motion axes respond', () => {
     const result = analyzeMotion(Array.from({ length: 120 }, (_, index) => sample(index)));
     expect(result.measurements.responsiveAxes).toBe(3);
-    expect(result.status).toBe('pass');
+    expect(result.status).toBe('inconclusive');
+  });
+
+  it('measures real gyroscope bias and noise across all IMU frames', () => {
+    const result = analyzeStationaryImu(Array.from({ length: 120 }, (_, index) => sample(index)));
+    expect(result.measurements.frameCount).toBe(360);
+    expect(result.measurements.gyroBiasDps).toBeGreaterThan(100);
+    expect(result.measurements.gyroNoiseDps).toBeGreaterThan(50);
   });
 });

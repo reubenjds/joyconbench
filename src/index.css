@@ -878,6 +878,9 @@ h3 {
   border-top: 4px solid var(--red);
   background: var(--white);
 }
+.test-card:last-child {
+  grid-column: span 2;
+}
 .test-number {
   color: var(--red);
   font-size: 2.7rem;
@@ -1030,6 +1033,165 @@ h3 {
   fill: var(--red);
   stroke: white;
   stroke-width: 2;
+}
+.imu-field {
+  display: block;
+}
+.imu-monitor {
+  margin: 0;
+  padding: 24px;
+}
+.imu-monitor-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 15px;
+}
+.imu-monitor-heading span {
+  color: var(--muted);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.imu-monitor-heading h2 {
+  margin: 5px 0 0;
+  font-size: 1.55rem;
+}
+.imu-monitor-heading > strong {
+  color: var(--blue);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.imu-monitor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  border-bottom: 1px solid var(--line);
+}
+.imu-chart {
+  min-width: 0;
+  border-right: 1px solid var(--line);
+  padding: 18px 20px 14px 0;
+}
+.imu-chart-key {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 8px;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+.imu-chart-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.imu-chart-key i {
+  width: 16px;
+  height: 2px;
+  display: block;
+  background: currentColor;
+}
+.imu-chart-key .imu-scale {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.imu-chart svg {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+.imu-chart svg .imu-axis-x,
+.imu-chart svg .imu-axis-y,
+.imu-chart svg .imu-axis-z {
+  fill: none;
+  stroke-width: 2.5;
+}
+.imu-axis-x {
+  color: var(--red);
+  stroke: var(--red);
+}
+.imu-axis-y {
+  color: var(--blue);
+  stroke: var(--blue);
+}
+.imu-axis-z {
+  color: var(--ink);
+  stroke: var(--ink);
+}
+.imu-grid-line {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.imu-grid-vertical {
+  stroke-dasharray: 4 5;
+}
+.imu-readings {
+  margin: 0;
+  padding: 18px 0 14px 18px;
+}
+.imu-readings > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+.imu-readings > div:first-child {
+  padding-top: 0;
+}
+.imu-readings dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.imu-readings dt span {
+  width: 7px;
+  height: 7px;
+  display: block;
+  background: currentColor;
+}
+.imu-readings dd {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.accelerometer-readings {
+  display: grid;
+  grid-template-columns: 1fr repeat(3, auto);
+  align-items: center;
+  gap: 28px;
+  padding-top: 15px;
+}
+.accelerometer-readings > strong {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.accelerometer-readings > span {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+.accelerometer-readings output {
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .output-grid,
@@ -1636,6 +1798,9 @@ footer {
   .test-card-grid {
     grid-template-columns: 1fr 1fr;
   }
+  .test-card:last-child {
+    grid-column: auto;
+  }
   .capture-instruction {
     grid-template-columns: 110px 1fr;
   }
@@ -1747,6 +1912,46 @@ footer {
   }
   .live-plot {
     grid-template-columns: 1fr;
+  }
+  .imu-monitor {
+    padding: 18px;
+  }
+  .imu-monitor-grid {
+    grid-template-columns: 1fr;
+  }
+  .imu-chart {
+    border-right: 0;
+    padding-right: 0;
+  }
+  .imu-readings {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 14px 0 0;
+  }
+  .imu-readings > div,
+  .imu-readings > div:first-child {
+    display: block;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+    padding: 0 10px;
+  }
+  .imu-readings > div:first-child {
+    padding-left: 0;
+  }
+  .imu-readings > div:last-child {
+    border-right: 0;
+  }
+  .imu-readings dd {
+    margin-top: 5px;
+  }
+  .accelerometer-readings {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+  .accelerometer-readings > span {
+    justify-content: space-between;
+    border-top: 1px solid var(--line);
+    padding-top: 7px;
   }
   .output-grid,
   .appearance-editor {

@@ -216,15 +216,14 @@ export function analyzeStationaryImu(
   profile = DEFAULT_THRESHOLDS
 ): DiagnosticResult {
   const vectors = imuVectors(samples, 'gyroscope');
-  if (vectors.length < 30)
-    return insufficient('imu-stationary', 'Stationary motion sensors', 'IMU frames');
+  if (vectors.length < 30) return insufficient('imu-stationary', 'Gyroscope at rest', 'IMU frames');
   const metrics = axisMetrics(vectors);
   const bias = Math.hypot(metrics.mean.x, metrics.mean.y, metrics.mean.z);
   const noise = Math.hypot(metrics.noise.x, metrics.noise.y, metrics.noise.z);
   const potential = bias > profile.imu.gyroBiasDps || noise > profile.imu.gyroNoiseDps;
   return {
     testId: 'imu-stationary',
-    title: 'Stationary motion sensors',
+    title: 'Gyroscope at rest',
     status: statusFromThreshold(profile, potential),
     measurements: {
       gyroBiasDps: round(bias),
@@ -252,7 +251,7 @@ export function analyzeMotion(
 ): DiagnosticResult {
   const gyro = imuVectors(samples, 'gyroscope');
   const accelerometer = imuVectors(samples, 'accelerometer');
-  if (gyro.length < 30) return insufficient('imu-motion', 'Motion axes', 'IMU frames');
+  if (gyro.length < 30) return insufficient('imu-motion', 'Gyroscope axes', 'IMU frames');
   const range = (vectors: Vector3[], axis: keyof Vector3) => {
     const values = vectors.map((vector) => vector[axis]);
     return Math.max(...values) - Math.min(...values);
@@ -268,8 +267,8 @@ export function analyzeMotion(
   ).length;
   return {
     testId: 'imu-motion',
-    title: 'Motion axes',
-    status: responsiveAxes === 3 ? 'pass' : 'potential-issue',
+    title: 'Gyroscope axes',
+    status: statusFromThreshold(profile, responsiveAxes !== 3),
     measurements: {
       gyroRangeX: round(gyroRanges.x, 1),
       gyroRangeY: round(gyroRanges.y, 1),

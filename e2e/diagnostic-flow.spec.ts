@@ -4,6 +4,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     const makeReport = () => {
       const bytes = new Uint8Array(48);
+      const view = new DataView(bytes.buffer);
       bytes[0] = Math.floor(performance.now() / 16) & 0xff;
       bytes[1] = 0x80;
       bytes[5] = 0x00;
@@ -12,7 +13,14 @@ test.beforeEach(async ({ page }) => {
       bytes[8] = 0x00;
       bytes[9] = 0x08;
       bytes[10] = 0x80;
-      return new DataView(bytes.buffer);
+      const phase = performance.now() / 180;
+      for (let frame = 0; frame < 3; frame += 1) {
+        const gyroOffset = 18 + frame * 12;
+        view.setInt16(gyroOffset, Math.round(Math.sin(phase + frame * 0.1) * 900), true);
+        view.setInt16(gyroOffset + 2, Math.round(Math.cos(phase + frame * 0.1) * 700), true);
+        view.setInt16(gyroOffset + 4, Math.round(Math.sin(phase * 0.6) * 500), true);
+      }
+      return view;
     };
 
     class MockDevice extends EventTarget {
@@ -92,6 +100,19 @@ test('connects a mocked Pro Controller directly into the button playground', asy
   await expect(page.getByRole('heading', { name: 'Left stick' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Right stick' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Stick drift' })).toBeVisible();
+  const testCards = page.locator('.test-card');
+  const regularCardBox = await testCards.nth(1).boundingBox();
+  const finalCardBox = await testCards.last().boundingBox();
+  expect(regularCardBox).not.toBeNull();
+  expect(finalCardBox).not.toBeNull();
+  expect(finalCardBox!.width).toBeGreaterThan(regularCardBox!.width * 1.5);
+
+  const gyroCard = page.getByRole('article').filter({ hasText: 'Gyroscope at rest' });
+  await gyroCard.getByRole('button').click();
+  await expect(page.getByRole('heading', { name: 'Gyroscope at rest' })).toBeVisible();
+  await expect(page.getByRole('img', { name: /Live gyroscope X, Y, and Z axes/i })).toBeVisible();
+  await expect(page.getByRole('status', { name: 'Gyroscope X', exact: true })).toContainText('°/s');
+  await page.getByRole('button', { name: /Back to test suite/ }).click();
   await expect(page.locator('.diagram-panel .controller-diagram')).toHaveAttribute(
     'style',
     /--controller-body: #6a4bc3;.*--controller-buttons: #21162f;/
