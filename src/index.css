@@ -365,27 +365,32 @@ h3 {
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
-.hero-red ul {
+.hero-benefits {
+  counter-reset: benefit;
   list-style: none;
   margin: 0;
-  border: 1px solid var(--line);
-  padding: 15px 18px;
-  background: var(--white);
+  border-bottom: 1px solid var(--line);
+  padding: 0;
   color: var(--ink);
-  font-size: 0.84rem;
+  font-size: 0.82rem;
 }
-.hero-red li {
-  display: flex;
+.hero-benefits li {
+  counter-increment: benefit;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  padding: 7px 0;
+  gap: 14px;
+  border-top: 1px solid var(--line);
+  padding: 13px 0;
+  line-height: 1.4;
 }
-.hero-red li::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  flex: none;
-  background: var(--red);
+.hero-benefits li::before {
+  content: '0' counter(benefit);
+  color: var(--red);
+  font-size: 0.66rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
 }
 .support-warning {
   border: 1px solid var(--ink);

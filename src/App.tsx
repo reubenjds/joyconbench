@@ -493,7 +493,7 @@ function ConnectView({
           </p>
         )}
       </section>
-      <section className="hero-red" aria-label="Supported controller types">
+      <section className="hero-red" aria-label="How JoyConBench works">
         <div className="hero-controller-pair" aria-hidden="true">
           <ControllerDiagram kind="joycon-left" />
           <ControllerDiagram kind="joycon-right" />
@@ -502,11 +502,11 @@ function ConnectView({
           <strong>Runs in your browser</strong>
           <span>Nothing uploaded</span>
         </div>
-        <ul>
+        <ol className="hero-benefits">
           <li>The live button test opens immediately</li>
           <li>Run only the diagnostics you need</li>
           <li>Switch controllers without reloading</li>
-        </ul>
+        </ol>
       </section>
     </div>
   );

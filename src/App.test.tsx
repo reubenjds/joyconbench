@@ -21,4 +21,11 @@ describe('JoyConBench application shell', () => {
     render(<App />);
     expect(screen.getByText(/Local only/)).toBeInTheDocument();
   });
+
+  it('presents the landing benefits as a concise ordered list', () => {
+    render(<App />);
+    const section = screen.getByRole('region', { name: 'How JoyConBench works' });
+    expect(section.querySelector('ol.hero-benefits')).toBeInTheDocument();
+    expect(section.querySelectorAll('li')).toHaveLength(3);
+  });
 });
