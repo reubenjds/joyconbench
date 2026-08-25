@@ -75,8 +75,9 @@ test.beforeEach(async ({ page }) => {
 
 test('connects a mocked Pro Controller directly into the button playground', async ({ page }) => {
   const externalRequests: string[] = [];
+  const applicationOrigin = `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT ?? '5173'}`;
   page.on('request', (request) => {
-    if (!request.url().startsWith('http://127.0.0.1:5173')) externalRequests.push(request.url());
+    if (new URL(request.url()).origin !== applicationOrigin) externalRequests.push(request.url());
   });
 
   await page.goto('/');

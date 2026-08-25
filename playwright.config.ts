@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const serverHost = '127.0.0.1';
+const serverPort = process.env.PLAYWRIGHT_PORT ?? '5173';
+const baseURL = `http://${serverHost}:${serverPort}`;
+const serverCommand = process.env.CI ? 'vite preview' : 'vite';
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -7,14 +12,17 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: 'html',
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL,
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'pnpm dev -- --host 127.0.0.1 --port 5173 --strictPort',
-    url: 'http://127.0.0.1:5173',
+    command: `pnpm exec ${serverCommand} --host ${serverHost} --port ${serverPort} --strictPort`,
+    url: baseURL,
+    wait: { stdout: new RegExp(`Local:\\s+${baseURL.replaceAll('.', '\\.')}\\/`) },
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    stdout: 'pipe',
+    stderr: 'pipe',
+    timeout: 30_000,
   },
 });
