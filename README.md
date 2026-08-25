@@ -1,127 +1,60 @@
 # JoyConBench
 
-**Open controller diagnostics for Nintendo Switch.**
+Browser-based diagnostics and settings tools for original Nintendo Switch Joy-Con and Pro Controllers.
 
-JoyConBench is a local-first browser application for testing official original-generation left
-Joy-Con, right Joy-Con, and Nintendo Switch Pro Controllers through WebHID. Controller samples stay
-in the browser and are never uploaded. Connect once, use the live button playground, and choose
-individual tests in any order. Stick drift is the fast default recommendation; no guided tour is
-required.
+## Features
 
-## Test bench
+- Live buttons, joystick movement, and controller rendering
+- Selectable stick, motion, connection, LED, and rumble tests
+- Printable, plain-text, and privacy-safe JSON reports
+- Retail colour presets and body/button colour editing
+- Compact settings backup and restore
+- Quick restart for testing another controller
 
-- Live controller rendering, detailed joystick movement, and a button checklist immediately after connection
-- Stored controller colours load automatically into the live diagram and colour editor
-- Independently selectable drift, circular-range, snapback, IMU, motion, packet, LED, and rumble
-  checks
-- In-memory results with printable, privacy-safe JSON and plain-text reports
-- One-click **Start again** at the end of a report for testing the next Joy-Con
-- Body and button colour editing with standard retail presets plus fast, scoped settings backup and restore
+## Prerequisites
 
-## Browser and hardware support
-
-- Desktop Chrome, Edge, and compatible Chromium browsers
+- Node.js 24 and pnpm to run locally
+- Desktop Chrome, Edge, or another Chromium browser with WebHID
 - HTTPS or localhost
-- Joy-Con over Bluetooth
-- Pro Controller over Bluetooth or USB
+- Original Joy-Con over Bluetooth, or a Pro Controller over Bluetooth or USB
 
-Safari, Firefox, iOS, third-party controllers, and Switch 2 controllers are not supported in v1.
+Safari, Firefox, iOS, third-party controllers, and Switch 2 controllers are not supported.
 
-## Development
-
-Use Node 24 and pnpm.
+## Run locally
 
 ```sh
 pnpm install
 pnpm dev
 ```
 
-Quality checks:
-
-```sh
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:e2e
-pnpm build
-```
-
-Add `?debug=1` to the local URL to show the protocol lab.
-
-## Cloudflare Pages
-
-Connect this GitHub repository to a Cloudflare Pages project with:
-
-- Production branch: `main`
-- Build command: `pnpm build`
-- Build output directory: `dist`
-- Root directory: repository root
-- Node version: 24
-
-Cloudflare Web Analytics must remain disabled. GitHub Actions performs CI; Cloudflare Pages handles
-production and same-repository pull-request previews.
+Add `?debug=1` to the local URL to open the protocol lab.
 
 ## Safety and privacy
 
-Diagnostics use transient commands for full input reports, IMU, LEDs, and bounded rumble. The
-optional controller tools can read and write only documented colour, factory-calibration, and
-sensor/stick-parameter regions after explicit confirmation. Compact `.bin` backups contain 97 bytes
-rather than the old toolkit's raw 512 KB flash dump, exclude serial/pairing/firmware/patch/unknown
-regions, include a SHA-256 checksum and controller product type, and are verified after restore.
-Legacy JoyConBench JSON backups remain importable. SPI erase and all firmware commands remain
-blocked.
+Controller samples stay in memory and are not uploaded. Reports exclude MAC addresses, serial
+numbers, raw packets, sample streams, and calibration values. See [PRIVACY.md](./PRIVACY.md).
 
-Reports never include backup contents or calibration values. They also omit MAC addresses, serial
-numbers, raw HID packets, and sample streams. See [PRIVACY.md](./PRIVACY.md) for the complete data
-boundary.
+Settings tools are limited to documented colour and calibration regions. Backups include a checksum
+and controller type; erase and firmware commands are blocked.
 
-Diagnostic conclusions use the documented, research-based reference profile in
-[THRESHOLDS.md](./THRESHOLDS.md). A result of “Potential issue” describes an observed pattern, not a
-repair diagnosis; “Inconclusive” is reserved for captures without enough usable input.
+Diagnostic limits are documented in [THRESHOLDS.md](./THRESHOLDS.md). Results describe observed
+patterns, not confirmed hardware faults.
 
-## Credits and references
+## Credits
 
-JoyConBench is independent, but it benefits from public research and ideas shared by the controller
-community. These references do not imply affiliation or endorsement.
+- [Nintendo Switch Reverse Engineering](https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering) — protocol, calibration, motion, and rumble research
+- [Joy-Con WebHID](https://github.com/tomayac/joy-con-webhid) — WebHID implementation reference
+- [Joy-Con Toolkit](https://github.com/CTCaer/jc_toolkit) — inspiration for testing and controller settings tools
+- [Nintendo Switch Brew: Joy-Con](https://switchbrew.org/wiki/Joy-Con) — controller and retail colour documentation
+- [WebHID specification](https://wicg.github.io/webhid/) — browser API reference
 
-### Controller research and related projects
-
-- [Nintendo Switch Reverse Engineering](https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering)
-  by dekuNukem and contributors — research on Nintendo HID reports, subcommands, SPI layout, motion
-  data, and rumble.
-- [Joy-Con WebHID](https://github.com/tomayac/joy-con-webhid) by Thomas Steiner and contributors —
-  an important reference for connecting Joy-Con controllers through WebHID.
-- [Joy-Con Toolkit](https://github.com/CTCaer/jc_toolkit) by CTCaer and contributors — inspiration
-  for controller tooling, live testing, colour editing, and backup and restore workflows.
-- [Nintendo Switch Brew: Joy-Con](https://switchbrew.org/wiki/Joy-Con) — community documentation
-  for controller data, configuration, and retail colours.
-- [WebHID specification](https://wicg.github.io/webhid/) — the browser device-access API reference.
-
-JoyConBench does not depend on Joy-Con WebHID or Joy-Con Toolkit at runtime. Its WebHID transport and
-Nintendo protocol layer are local TypeScript implementations, and its compact backup format is not
-compatible with Joy-Con Toolkit raw SPI images.
-
-### Artwork
-
-The interactive controller proportions are adapted from
+Controller artwork is adapted from
 [Nintendo Switch Joy-Con illustration.svg](https://commons.wikimedia.org/wiki/File:Nintendo_Switch_Joy-Con_illustration.svg)
-by 0 Noctis 0 under CC BY-SA 4.0. See [NOTICE.md](./NOTICE.md) for complete attribution, license, and
-modification details.
+by 0 Noctis 0 under CC BY-SA 4.0. See [NOTICE.md](./NOTICE.md).
 
-### Project tooling
+## Disclaimer
 
-Built with [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/),
-[Vite](https://vite.dev/), [Tailwind CSS](https://tailwindcss.com/), [pnpm](https://pnpm.io/),
-[Vitest](https://vitest.dev/), [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/),
-[Playwright](https://playwright.dev/), [vite-plugin-pwa](https://vite-pwa-org.netlify.app/),
-[GitHub Actions](https://docs.github.com/actions), and
-[Cloudflare Pages](https://developers.cloudflare.com/pages/).
-
-## Nintendo disclaimer
-
-JoyConBench is an independent open-source project. It is not affiliated with, endorsed by, or
-sponsored by Nintendo. Nintendo Switch, Joy-Con, and related names are trademarks of Nintendo.
+JoyConBench is not affiliated with, endorsed by, or sponsored by Nintendo.
 
 ## License
 
