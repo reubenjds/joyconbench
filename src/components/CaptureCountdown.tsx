@@ -28,12 +28,30 @@ export function CaptureCountdown({
 
   const seconds = Math.ceil(remainingMs / 1000);
   const progress = durationMs > 0 ? (remainingMs / durationMs) * 100 : 0;
+  const state = running ? 'running' : complete ? 'complete' : 'ready';
+  const visibleLabel = complete
+    ? 'complete'
+    : running
+      ? seconds === 1
+        ? 'second left'
+        : 'seconds left'
+      : seconds === 1
+        ? 'second'
+        : 'seconds';
 
   return (
-    <div
-      className="capture-clock"
-      data-state={running ? 'running' : complete ? 'complete' : 'ready'}
-    >
+    <div className="capture-clock" data-state={state}>
+      <svg className="capture-ring" viewBox="0 0 120 120" aria-hidden="true">
+        <circle className="capture-ring-track" cx="60" cy="60" r="54" />
+        <circle
+          className="capture-ring-progress"
+          cx="60"
+          cy="60"
+          r="54"
+          pathLength="100"
+          style={{ strokeDashoffset: 100 - progress }}
+        />
+      </svg>
       <output
         className="capture-clock-output"
         role="timer"
@@ -42,11 +60,8 @@ export function CaptureCountdown({
         aria-label={`${seconds} ${seconds === 1 ? 'second' : 'seconds'} remaining`}
       >
         <strong>{seconds}</strong>
-        <span>{seconds === 1 ? 'second left' : 'seconds left'}</span>
+        <span>{visibleLabel}</span>
       </output>
-      <div className="capture-progress" aria-hidden="true">
-        <i style={{ width: `${progress}%` }} />
-      </div>
     </div>
   );
 }

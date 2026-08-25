@@ -121,6 +121,14 @@ test('connects a mocked Pro Controller directly into the button playground', asy
   const gyroCard = page.getByRole('article').filter({ hasText: 'Gyroscope at rest' });
   await gyroCard.getByRole('button').click();
   await expect(page.getByRole('heading', { name: 'Gyroscope at rest' })).toBeVisible();
+  const clockBox = await page.locator('.capture-clock').boundingBox();
+  const timerBox = await page.getByRole('timer').boundingBox();
+  expect(clockBox).not.toBeNull();
+  expect(timerBox).not.toBeNull();
+  expect(clockBox!.width).toBeGreaterThanOrEqual(120);
+  expect(timerBox!.x - clockBox!.x).toBeGreaterThanOrEqual(18);
+  expect(timerBox!.y - clockBox!.y).toBeGreaterThanOrEqual(18);
+  await expect(page.locator('.capture-ring-progress')).toBeVisible();
   await expect(page.getByRole('img', { name: /Live gyroscope X, Y, and Z axes/i })).toBeVisible();
   await expect(page.getByRole('img', { name: /Live gyroscope X and Y vector/i })).toBeVisible();
   await expect(page.getByRole('status', { name: 'Gyroscope X', exact: true })).toContainText('°/s');

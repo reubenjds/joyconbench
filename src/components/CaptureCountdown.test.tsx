@@ -12,6 +12,10 @@ describe('CaptureCountdown', () => {
     );
 
     expect(screen.getByRole('timer')).toHaveAccessibleName('5 seconds remaining');
+    expect(screen.getByText('seconds')).toBeVisible();
+    expect(document.querySelector('.capture-ring-progress')).toHaveStyle({
+      strokeDashoffset: '0',
+    });
 
     rerender(<CaptureCountdown durationMs={5000} running complete={false} />);
     act(() => vi.advanceTimersByTime(1100));
@@ -22,5 +26,9 @@ describe('CaptureCountdown', () => {
 
     rerender(<CaptureCountdown durationMs={5000} running={false} complete />);
     expect(screen.getByRole('timer')).toHaveAccessibleName('0 seconds remaining');
+    expect(screen.getByText('complete')).toBeVisible();
+    expect(document.querySelector('.capture-ring-progress')).toHaveStyle({
+      strokeDashoffset: '100',
+    });
   });
 });
