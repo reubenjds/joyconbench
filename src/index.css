@@ -1545,6 +1545,7 @@ h3 {
   font-weight: 600;
   line-height: 1.4;
 }
+.tool-status-loaded,
 .tool-status-complete {
   --tool-status-accent: var(--green);
 }

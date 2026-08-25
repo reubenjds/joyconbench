@@ -14,7 +14,7 @@ import type {
 import { ControllerDiagram } from './ControllerDiagram';
 import { Button, Modal, Panel } from './ui';
 
-type ToolStatusTone = 'ready' | 'working' | 'complete' | 'error';
+type ToolStatusTone = 'ready' | 'working' | 'loaded' | 'complete' | 'error';
 
 const RETAIL_COLORS: ReadonlyArray<{ name: string; colors: ControllerColors }> = [
   { name: 'Gray', colors: { body: '#828282', buttons: '#0f0f0f' } },
@@ -53,9 +53,7 @@ export function ControllerTools({
   const [confirmColor, setConfirmColor] = useState(false);
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [statusTone, setStatusTone] = useState<ToolStatusTone>(
-    initialColors ? 'complete' : 'ready'
-  );
+  const [statusTone, setStatusTone] = useState<ToolStatusTone>(initialColors ? 'loaded' : 'ready');
   const [message, setMessage] = useState(
     initialColors
       ? 'Controller colours loaded automatically on connection.'
@@ -69,18 +67,22 @@ export function ControllerTools({
     if (!initialColors || initialColorsApplied.current) return;
     initialColorsApplied.current = true;
     setColors(initialColors);
-    setStatusTone('complete');
+    setStatusTone('loaded');
     setMessage('Controller colours loaded automatically on connection.');
   }, [initialColors]);
 
   const loadColors = async () => {
-    await runTool('Reading controller colours…', async () => {
-      const loadedColors = await adapter.readColors();
-      initialColorsApplied.current = true;
-      setColors(loadedColors);
-      onColorsChange(loadedColors);
-      setMessage('Controller colours loaded.');
-    });
+    await runTool(
+      'Reading controller colours…',
+      async () => {
+        const loadedColors = await adapter.readColors();
+        initialColorsApplied.current = true;
+        setColors(loadedColors);
+        onColorsChange(loadedColors);
+        setMessage('Controller colours loaded.');
+      },
+      'loaded'
+    );
   };
 
   const saveColors = async () => {
@@ -127,7 +129,7 @@ export function ControllerTools({
         try {
           parsed = JSON.parse(new TextDecoder().decode(bytes));
         } catch {
-          throw new Error('Choose a JoyConBench .bin backup or legacy JoyConBench .json backup.');
+          throw new Error('Choose a JoyConBench settings backup.');
         }
         backup = await validateSettingsBackup(parsed, identity);
       }
@@ -156,14 +158,18 @@ export function ControllerTools({
     });
   };
 
-  const runTool = async (initialMessage: string, action: () => Promise<void>) => {
+  const runTool = async (
+    initialMessage: string,
+    action: () => Promise<void>,
+    successTone: ToolStatusTone = 'complete'
+  ) => {
     setBusy(true);
     setStatusTone('working');
     setProgress(0);
     setMessage(initialMessage);
     try {
       await action();
-      setStatusTone('complete');
+      setStatusTone(successTone);
     } catch (error) {
       setStatusTone('error');
       setMessage(error instanceof Error ? error.message : 'The controller tool failed.');
@@ -296,8 +302,7 @@ export function ControllerTools({
           </div>
           <p className="tool-fine-print">
             JoyConBench .bin files are compact settings backups, not the old toolkit’s 512 KB raw
-            SPI images. Legacy JoyConBench JSON backups are still accepted. Every chunk is checked
-            before writing and verified afterward.
+            SPI images. Every chunk is checked before writing and verified afterward.
           </p>
         </Panel>
       </div>
@@ -360,11 +365,13 @@ function ToolStatus({
 }) {
   const label = busy
     ? `Working ${progress}%`
-    : tone === 'complete'
-      ? 'Complete'
-      : tone === 'error'
-        ? 'Needs attention'
-        : 'Ready';
+    : tone === 'loaded'
+      ? 'Loaded'
+      : tone === 'complete'
+        ? 'Complete'
+        : tone === 'error'
+          ? 'Needs attention'
+          : 'Ready';
   return (
     <div className={`tool-status tool-status-${tone}`} role="status" aria-live="polite">
       <div className="tool-status-label">

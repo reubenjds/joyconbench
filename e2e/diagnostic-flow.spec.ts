@@ -155,8 +155,8 @@ test('connects a mocked Pro Controller directly into the button playground', asy
   expect(headingBox).not.toBeNull();
   expect(eyebrowBox!.y).toBeLessThan(headingBox!.y);
   await expect(page.getByText('Retail colours')).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('Complete');
-  await expect(page.getByRole('status')).toHaveClass(/tool-status-complete/);
+  await expect(page.getByRole('status')).toContainText('Loaded');
+  await expect(page.getByRole('status')).toHaveClass(/tool-status-loaded/);
   await expect(page.locator('.tool-status-dot')).toHaveCSS('background-color', 'rgb(22, 131, 79)');
   await expect(page.getByRole('status')).toContainText('loaded automatically on connection');
   await expect(page.getByLabel('Body')).toHaveValue('#6a4bc3');
