@@ -39,8 +39,7 @@ export function useController() {
     setError(null);
     setColors(null);
     try {
-      const authorized = await WebHIDTransport.authorizedDevices();
-      const connectedIdentity = await adapterRef.current.connect(authorized[0]);
+      const connectedIdentity = await adapterRef.current.connect();
       await adapterRef.current.initialize();
       setIdentity(connectedIdentity);
       setStatus('ready');

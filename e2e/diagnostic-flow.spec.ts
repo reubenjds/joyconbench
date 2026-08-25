@@ -26,10 +26,14 @@ test.beforeEach(async ({ page }) => {
     class MockDevice extends EventTarget {
       opened = false;
       vendorId = 0x057e;
-      productId = 0x2009;
-      productName = 'Pro Controller';
       collections = [{ usagePage: 1, usage: 5, outputReports: [{ reportId: 0x01 }] }];
       timer?: number;
+      constructor(
+        readonly productId: number,
+        readonly productName: string
+      ) {
+        super();
+      }
       async open() {
         this.opened = true;
       }
@@ -68,13 +72,17 @@ test.beforeEach(async ({ page }) => {
         }
       }
     }
-    const device = new MockDevice();
+    const leftJoyCon = new MockDevice(0x2006, 'Joy-Con (L)');
+    const proController = new MockDevice(0x2009, 'Pro Controller');
+    let pickerCount = 0;
     const hid = new (class extends EventTarget {
       async getDevices() {
-        return [];
+        return [leftJoyCon, proController];
       }
       async requestDevice() {
-        return [device];
+        const selected = pickerCount === 0 ? proController : leftJoyCon;
+        pickerCount += 1;
+        return [selected];
       }
     })();
     Object.defineProperty(navigator, 'hid', { configurable: true, value: hid });
@@ -167,6 +175,14 @@ test('connects a mocked Pro Controller directly into the button playground', asy
   await expect(
     page.getByRole('heading', { name: /See exactly what your controller/i })
   ).toBeVisible();
+  await page.getByRole('button', { name: 'Connect controller' }).click();
+  await expect(
+    page.getByText('Choose the Joy-Con or Pro Controller you want to test.')
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Open controller picker' }).click();
+  await expect(page.locator('.device-strip')).toContainText('Left Joy-Con');
+  await expect(page.getByRole('heading', { name: 'Left stick' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Right stick' })).toHaveCount(0);
   expect(externalRequests).toEqual([]);
 });
 

@@ -420,7 +420,7 @@ export default function App() {
               Pair it in your computer’s Bluetooth settings first. Pro Controllers can also use USB.
             </li>
             <li>Keep it awake by pressing a button.</li>
-            <li>Choose only the Nintendo controller in the browser picker.</li>
+            <li>Choose the Joy-Con or Pro Controller you want to test.</li>
           </ol>
           <Button
             className="pairing-action"

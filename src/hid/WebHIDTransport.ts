@@ -39,15 +39,6 @@ export class WebHIDTransport {
     return window.isSecureContext && Boolean(navigator.hid);
   }
 
-  static async authorizedDevices() {
-    if (!navigator.hid) return [];
-    return (await navigator.hid.getDevices()).filter(
-      (device) =>
-        device.vendorId === NINTENDO_VENDOR_ID &&
-        SUPPORTED_PRODUCT_IDS.includes(device.productId as (typeof SUPPORTED_PRODUCT_IDS)[number])
-    );
-  }
-
   async requestDevice() {
     if (!navigator.hid) throw new Error('WebHID is unavailable in this browser.');
     const devices = await navigator.hid.requestDevice({
