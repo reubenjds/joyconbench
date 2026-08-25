@@ -70,13 +70,15 @@ test('connects a mocked Pro Controller directly into the button playground', asy
   await page.getByRole('button', { name: 'Open controller picker' }).click();
   await expect(page.getByText('Nintendo Switch Pro Controller').first()).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Button test' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Gyroscope' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Joystick movement' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Left stick' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Right stick' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Stick drift' })).toBeVisible();
   const controllerBox = await page.locator('.diagram-panel .controller-diagram').boundingBox();
-  const gyroBox = await page.locator('.live-gyroscope').boundingBox();
+  const joystickBox = await page.locator('.live-joysticks').boundingBox();
   expect(controllerBox).not.toBeNull();
-  expect(gyroBox).not.toBeNull();
-  expect(gyroBox!.x).toBeGreaterThan(controllerBox!.x);
+  expect(joystickBox).not.toBeNull();
+  expect(joystickBox!.x).toBeGreaterThan(controllerBox!.x);
 
   await page
     .getByRole('navigation', { name: 'Workbench' })
@@ -117,12 +119,12 @@ test('informational layout has no horizontal overflow at a narrow width', async 
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
 });
 
-test('connected gyro layout has no horizontal overflow at a narrow width', async ({ page }) => {
+test('connected joystick layout has no horizontal overflow at a narrow width', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Connect controller' }).click();
   await page.getByRole('button', { name: 'Open controller picker' }).click();
-  await expect(page.getByRole('heading', { name: 'Gyroscope' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Joystick movement' })).toBeVisible();
   const dimensions = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,

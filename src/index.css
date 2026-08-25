@@ -454,7 +454,7 @@ h3 {
 .controller-live-view {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) 230px;
+  grid-template-columns: minmax(190px, 1fr) minmax(280px, 310px);
   align-items: center;
   gap: 28px;
   padding: 34px 34px 82px;
@@ -471,12 +471,12 @@ h3 {
 .joycon-diagram {
   max-width: 210px;
 }
-.live-gyroscope {
+.live-joysticks {
   width: 100%;
   border: 1px solid var(--ink);
   background: var(--white);
 }
-.gyro-heading {
+.joystick-heading {
   display: flex;
   align-items: start;
   justify-content: space-between;
@@ -484,114 +484,141 @@ h3 {
   border-bottom: 1px solid var(--line);
   padding: 13px 14px;
 }
-.gyro-heading span,
-.live-gyroscope > p {
+.joystick-heading span,
+.live-joysticks > p {
   color: var(--muted);
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.gyro-heading h2 {
+.joystick-heading h2 {
   margin-top: 3px;
   font-size: 1.15rem;
 }
-.gyro-heading output {
+.joystick-heading > strong {
   color: var(--red);
-  font-size: 1.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.joystick-monitor-grid {
+  display: grid;
+}
+.joystick-monitor {
+  border-bottom: 1px solid var(--line);
+}
+.joystick-monitor:last-child {
+  border-bottom: 0;
+}
+.joystick-monitor-heading {
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding: 0 13px;
+}
+.joystick-monitor-heading h3 {
+  font-size: 0.74rem;
+}
+.joystick-monitor-heading output {
+  color: var(--red);
+  font-size: 0.72rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.gyro-heading output small {
-  margin-left: 3px;
-  color: var(--muted);
-  font-size: 0.58rem;
+.joystick-monitor-body {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 92px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
 }
-.gyro-vector {
-  width: min(100%, 170px);
+.joystick-plot {
+  width: 100%;
+  max-height: 160px;
   display: block;
-  margin: 8px auto 2px;
 }
-.gyro-ring,
-.gyro-grid {
+.joystick-boundary {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+.joystick-guide,
+.joystick-axis {
   fill: none;
   stroke: var(--line);
   stroke-width: 1;
 }
-.gyro-grid {
-  stroke-dasharray: 2 4;
+.joystick-axis {
+  stroke-dasharray: 3 4;
 }
-.gyro-center {
-  fill: var(--ink);
-}
-.gyro-vector-line {
-  fill: none;
+.joystick-deadzone {
+  fill: var(--red-soft);
   stroke: var(--red);
-  stroke-width: 2;
+  stroke-width: 1;
 }
-.gyro-vector-point {
+.joystick-trace,
+.joystick-vector {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.joystick-trace {
+  stroke: var(--blue);
+  stroke-width: 2.25;
+  opacity: 0.4;
+}
+.joystick-vector {
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+.joystick-point {
   fill: var(--red);
   stroke: var(--white);
   stroke-width: 2;
 }
-.gyro-vector text {
+.joystick-plot text {
   fill: var(--muted);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
 }
-.gyro-axes {
+.joystick-values {
   margin: 0;
-  border-top: 1px solid var(--line);
+  border: 1px solid var(--line);
 }
-.gyro-axes > div {
+.joystick-values > div {
   display: grid;
-  grid-template-columns: 24px 1fr;
+  grid-template-columns: 39px 1fr;
   align-items: center;
-  min-height: 35px;
+  min-height: 28px;
   border-bottom: 1px solid var(--line);
-  padding: 0 12px;
+  padding: 0 7px;
 }
-.gyro-axes dt {
-  color: var(--red);
-  font-size: 0.68rem;
-  font-weight: 700;
+.joystick-values > div:last-child {
+  border-bottom: 0;
 }
-.gyro-axes dd {
-  display: grid;
-  grid-template-columns: 1fr 54px;
-  align-items: center;
-  gap: 8px;
+.joystick-values dt {
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.joystick-values dd {
   margin: 0;
-}
-.gyro-axes output {
   text-align: right;
-  font-size: 0.72rem;
+}
+.joystick-values output {
+  font-size: 0.66rem;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
-.gyro-axis-track {
-  height: 9px;
-  position: relative;
-  border: 1px solid var(--line);
-  background: var(--paper);
-}
-.gyro-axis-zero,
-.gyro-axis-value {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-}
-.gyro-axis-zero {
-  left: 50%;
-  width: 1px;
-  background: var(--ink);
-}
-.gyro-axis-value {
-  left: var(--gyro-axis-left);
-  width: var(--gyro-axis-width);
-  background: var(--red);
-}
-.live-gyroscope > p {
+.live-joysticks > p {
   margin: 0;
+  border-top: 1px solid var(--line);
   padding: 10px 12px;
   line-height: 1.4;
 }
@@ -1481,7 +1508,7 @@ footer {
   .controller-live-view > .controller-diagram {
     max-height: 360px;
   }
-  .live-gyroscope {
+  .live-joysticks {
     max-width: 320px;
     justify-self: center;
   }

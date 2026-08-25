@@ -10,7 +10,7 @@ required.
 
 ## Test bench
 
-- Live controller rendering, three-axis gyroscope rates, and a button checklist immediately after connection
+- Live controller rendering, detailed joystick movement, and a button checklist immediately after connection
 - Independently selectable drift, circular-range, snapback, IMU, motion, packet, LED, and rumble
   checks
 - In-memory results with printable, privacy-safe JSON and plain-text reports

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ControllerDiagram } from './components/ControllerDiagram';
 import { ControllerTools } from './components/ControllerTools';
+import { LiveJoysticks } from './components/LiveJoysticks';
 import { LivePlot } from './components/LivePlot';
-import { LiveGyroscope } from './components/LiveGyroscope';
 import { Button, Modal, Panel, StatusLabel } from './components/ui';
 import {
   analyzeMotion,
@@ -307,6 +307,7 @@ export default function App() {
           <BenchView
             identity={identity}
             latestSample={controller.latestSample}
+            samples={controller.samplesRef.current}
             requiredButtons={requiredButtons}
             seenButtons={seenButtons}
             results={results}
@@ -490,6 +491,7 @@ function ConnectView({
 function BenchView({
   identity,
   latestSample,
+  samples,
   requiredButtons,
   seenButtons,
   results,
@@ -500,6 +502,7 @@ function BenchView({
 }: {
   identity: ControllerIdentity;
   latestSample: ControllerSample | null;
+  samples: ControllerSample[];
   requiredButtons: ControllerButton[];
   seenButtons: Set<ControllerButton>;
   results: DiagnosticResult[];
@@ -526,7 +529,11 @@ function BenchView({
         <Panel className="diagram-panel color-blue">
           <div className="controller-live-view">
             <ControllerDiagram kind={identity.kind} sample={latestSample} />
-            <LiveGyroscope sample={latestSample} />
+            <LiveJoysticks
+              latestSample={latestSample}
+              samples={samples}
+              sticks={sticksFor(identity)}
+            />
           </div>
           <div className="seen-meter">
             <strong>
