@@ -30,6 +30,23 @@ test.beforeEach(async ({ page }) => {
         if (this.timer) window.clearInterval(this.timer);
       }
       async sendReport(reportId: number, data: Uint8Array) {
+        if (reportId === 0x01 && data[9] === 0x10) {
+          const reply = new Uint8Array(50);
+          reply[12] = 0x90;
+          reply[13] = 0x10;
+          reply.set(data.slice(10, 14), 14);
+          reply[18] = data[14];
+          reply.set([0x6a, 0x4b, 0xc3, 0x21, 0x16, 0x2f], 19);
+          queueMicrotask(() => {
+            const event = new Event('inputreport');
+            Object.defineProperties(event, {
+              reportId: { value: 0x21 },
+              data: { value: new DataView(reply.buffer) },
+              device: { value: this },
+            });
+            this.dispatchEvent(event);
+          });
+        }
         if (reportId === 0x01 && data[9] === 0x03 && data[10] === 0x30 && !this.timer) {
           this.timer = window.setInterval(() => {
             const event = new Event('inputreport');
@@ -74,6 +91,10 @@ test('connects a mocked Pro Controller directly into the button playground', asy
   await expect(page.getByRole('heading', { name: 'Left stick' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Right stick' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Stick drift' })).toBeVisible();
+  await expect(page.locator('.diagram-panel .controller-diagram')).toHaveAttribute(
+    'style',
+    /--controller-body: #6a4bc3;.*--controller-buttons: #21162f;/
+  );
   const controllerBox = await page.locator('.diagram-panel .controller-diagram').boundingBox();
   const joystickBox = await page.locator('.live-joysticks').boundingBox();
   expect(controllerBox).not.toBeNull();
@@ -85,6 +106,10 @@ test('connects a mocked Pro Controller directly into the button playground', asy
     .getByRole('button', { name: 'Controller tools' })
     .click();
   await expect(page.getByText('Retail colours')).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('Complete');
+  await expect(page.getByRole('status')).toContainText('loaded automatically on connection');
+  await expect(page.getByLabel('Body')).toHaveValue('#6a4bc3');
+  await expect(page.getByLabel('Buttons')).toHaveValue('#21162f');
   await expect(page.locator('.retail-color')).toHaveCount(15);
   await page.getByRole('button', { name: 'Neon blue' }).click();
   await expect(page.getByLabel('Body')).toHaveValue('#0ab9e6');

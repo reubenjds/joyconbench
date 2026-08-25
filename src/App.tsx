@@ -18,6 +18,7 @@ import { useController } from './hooks/useController';
 import { buildReport, downloadReport, reportSummary } from './report/report';
 import type {
   ControllerButton,
+  ControllerColors,
   ControllerIdentity,
   ControllerSample,
   DiagnosticResult,
@@ -309,6 +310,7 @@ export default function App() {
             identity={identity}
             latestSample={controller.latestSample}
             samples={controller.samplesRef.current}
+            controllerColors={controller.colors}
             requiredButtons={requiredButtons}
             seenButtons={seenButtons}
             results={results}
@@ -350,6 +352,8 @@ export default function App() {
               adapter={controller.adapter}
               identity={identity}
               batteryCritical={controller.latestSample?.battery === 'critical'}
+              initialColors={controller.colors}
+              onColorsChange={controller.setColors}
             />
           </PageFrame>
         )}
@@ -493,6 +497,7 @@ function BenchView({
   identity,
   latestSample,
   samples,
+  controllerColors,
   requiredButtons,
   seenButtons,
   results,
@@ -504,6 +509,7 @@ function BenchView({
   identity: ControllerIdentity;
   latestSample: ControllerSample | null;
   samples: ControllerSample[];
+  controllerColors: ControllerColors | null;
   requiredButtons: ControllerButton[];
   seenButtons: Set<ControllerButton>;
   results: DiagnosticResult[];
@@ -529,7 +535,11 @@ function BenchView({
       <div className="button-bench">
         <Panel className="diagram-panel color-blue">
           <div className="controller-live-view">
-            <ControllerDiagram kind={identity.kind} sample={latestSample} />
+            <ControllerDiagram
+              kind={identity.kind}
+              sample={latestSample}
+              colors={controllerColors ?? undefined}
+            />
             <LiveJoysticks
               latestSample={latestSample}
               samples={samples}

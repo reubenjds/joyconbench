@@ -11,6 +11,7 @@ required.
 ## Test bench
 
 - Live controller rendering, detailed joystick movement, and a button checklist immediately after connection
+- Stored controller colours load automatically into the live diagram and colour editor
 - Independently selectable drift, circular-range, snapback, IMU, motion, packet, LED, and rumble
   checks
 - In-memory results with printable, privacy-safe JSON and plain-text reports

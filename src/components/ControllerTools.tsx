@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react';
 import type { NintendoControllerAdapter } from '../adapters/NintendoControllerAdapter';
 import {
   decodeSettingsBackup,
@@ -13,6 +13,8 @@ import type {
 } from '../types/controller';
 import { ControllerDiagram } from './ControllerDiagram';
 import { Button, Modal, Panel } from './ui';
+
+type ToolStatusTone = 'ready' | 'working' | 'complete' | 'error';
 
 const RETAIL_COLORS: ReadonlyArray<{ name: string; colors: ControllerColors }> = [
   { name: 'Gray', colors: { body: '#828282', buttons: '#0f0f0f' } },
@@ -36,24 +38,47 @@ export function ControllerTools({
   adapter,
   identity,
   batteryCritical,
+  initialColors,
+  onColorsChange,
 }: {
   adapter: NintendoControllerAdapter;
   identity: ControllerIdentity;
   batteryCritical: boolean;
+  initialColors: ControllerColors | null;
+  onColorsChange: (colors: ControllerColors) => void;
 }) {
-  const [colors, setColors] = useState(() => defaultColors(identity));
+  const [colors, setColors] = useState(() => initialColors ?? defaultColors(identity));
   const [pendingBackup, setPendingBackup] = useState<ControllerSettingsBackup | null>(null);
   const [pendingFile, setPendingFile] = useState('');
   const [confirmColor, setConfirmColor] = useState(false);
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('Nothing has been written to the controller.');
+  const [statusTone, setStatusTone] = useState<ToolStatusTone>(
+    initialColors ? 'complete' : 'ready'
+  );
+  const [message, setMessage] = useState(
+    initialColors
+      ? 'Controller colours loaded automatically on connection.'
+      : 'Nothing has been written to the controller.'
+  );
   const [progress, setProgress] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
+  const initialColorsApplied = useRef(Boolean(initialColors));
+
+  useEffect(() => {
+    if (!initialColors || initialColorsApplied.current) return;
+    initialColorsApplied.current = true;
+    setColors(initialColors);
+    setStatusTone('complete');
+    setMessage('Controller colours loaded automatically on connection.');
+  }, [initialColors]);
 
   const loadColors = async () => {
     await runTool('Reading controller colours…', async () => {
-      setColors(await adapter.readColors());
+      const loadedColors = await adapter.readColors();
+      initialColorsApplied.current = true;
+      setColors(loadedColors);
+      onColorsChange(loadedColors);
       setMessage('Controller colours loaded.');
     });
   };
@@ -62,6 +87,7 @@ export function ControllerTools({
     setConfirmColor(false);
     await runTool('Writing and verifying colours…', async () => {
       await adapter.writeColors(colors);
+      onColorsChange(colors);
       setMessage(
         'Colours verified. Re-pair or restart the console if it still shows the old shell.'
       );
@@ -87,6 +113,7 @@ export function ControllerTools({
     event.target.value = '';
     if (!file) return;
     if (file.size > 64 * 1024) {
+      setStatusTone('error');
       setMessage('That file is too large to be a JoyConBench settings backup.');
       return;
     }
@@ -107,8 +134,10 @@ export function ControllerTools({
       setPendingBackup(backup);
       setPendingFile(file.name);
       setConfirmRestore(true);
+      setStatusTone('complete');
       setMessage('Backup checked. Review the restore warning.');
     } catch (error) {
+      setStatusTone('error');
       setMessage(error instanceof Error ? error.message : 'The backup could not be read.');
     }
   };
@@ -129,11 +158,14 @@ export function ControllerTools({
 
   const runTool = async (initialMessage: string, action: () => Promise<void>) => {
     setBusy(true);
+    setStatusTone('working');
     setProgress(0);
     setMessage(initialMessage);
     try {
       await action();
+      setStatusTone('complete');
     } catch (error) {
+      setStatusTone('error');
       setMessage(error instanceof Error ? error.message : 'The controller tool failed.');
     } finally {
       setBusy(false);
@@ -147,31 +179,40 @@ export function ControllerTools({
           Persistent tools are paused because the controller reports a critical battery level.
         </div>
       )}
+      <ToolStatus tone={statusTone} busy={busy} progress={progress} message={message} />
       <div className="tools-grid">
         <Panel className="color-tool color-blue">
-          <span className="sticker">Appearance</span>
-          <div className="tool-preview">
-            <ControllerDiagram kind={identity.kind} colors={colors} />
+          <div className="panel-heading color-tool-heading">
+            <div>
+              <span className="sticker">Appearance</span>
+              <h2>Controller colours</h2>
+            </div>
+            <p>Preview a retail pair or choose custom body and button values.</p>
           </div>
-          <div className="color-fields">
-            <label>
-              <span>Body</span>
-              <input
-                type="color"
-                value={colors.body}
-                onChange={(event) => setColors({ ...colors, body: event.target.value })}
-              />
-              <code>{colors.body.toUpperCase()}</code>
-            </label>
-            <label>
-              <span>Buttons</span>
-              <input
-                type="color"
-                value={colors.buttons}
-                onChange={(event) => setColors({ ...colors, buttons: event.target.value })}
-              />
-              <code>{colors.buttons.toUpperCase()}</code>
-            </label>
+          <div className="appearance-editor">
+            <div className="tool-preview">
+              <ControllerDiagram kind={identity.kind} colors={colors} />
+            </div>
+            <div className="color-fields">
+              <label>
+                <span>Body</span>
+                <input
+                  type="color"
+                  value={colors.body}
+                  onChange={(event) => setColors({ ...colors, body: event.target.value })}
+                />
+                <code>{colors.body.toUpperCase()}</code>
+              </label>
+              <label>
+                <span>Buttons</span>
+                <input
+                  type="color"
+                  value={colors.buttons}
+                  onChange={(event) => setColors({ ...colors, buttons: event.target.value })}
+                />
+                <code>{colors.buttons.toUpperCase()}</code>
+              </label>
+            </div>
           </div>
           <div className="retail-colors">
             <div className="retail-colors-heading">
@@ -224,6 +265,16 @@ export function ControllerTools({
             Saves 97 bytes from documented colour, calibration, and sensor-parameter regions. It
             excludes serial, pairing, firmware, patch, and unidentified flash data.
           </p>
+          <dl className="backup-facts">
+            <div>
+              <dt>Backup scope</dt>
+              <dd>97 bytes</dd>
+            </div>
+            <div>
+              <dt>File format</dt>
+              <dd>Checksummed .bin</dd>
+            </div>
+          </dl>
           <div className="backup-stack">
             <Button onClick={createBackup} disabled={busy}>
               Download settings backup
@@ -249,11 +300,6 @@ export function ControllerTools({
             before writing and verified afterward.
           </p>
         </Panel>
-      </div>
-
-      <div className="tool-status" role="status" aria-live="polite">
-        <span>{busy ? `${progress}%` : 'READY'}</span>
-        <p>{message}</p>
       </div>
 
       <Modal
@@ -298,6 +344,41 @@ export function ControllerTools({
         </div>
       </Modal>
     </>
+  );
+}
+
+function ToolStatus({
+  tone,
+  busy,
+  progress,
+  message,
+}: {
+  tone: ToolStatusTone;
+  busy: boolean;
+  progress: number;
+  message: string;
+}) {
+  const label = busy
+    ? `Working ${progress}%`
+    : tone === 'complete'
+      ? 'Complete'
+      : tone === 'error'
+        ? 'Needs attention'
+        : 'Ready';
+  return (
+    <div className={`tool-status tool-status-${tone}`} role="status" aria-live="polite">
+      <div className="tool-status-label">
+        <span className="tool-status-dot" aria-hidden="true" />
+        <small>Status</small>
+        <strong>{label}</strong>
+      </div>
+      <p>{message}</p>
+      {busy && (
+        <div className="tool-status-progress" aria-hidden="true">
+          <i style={{ width: `${progress}%` }} />
+        </div>
+      )}
+    </div>
   );
 }
 
