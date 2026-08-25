@@ -156,6 +156,7 @@ test('connects a mocked Pro Controller directly into the button playground', asy
     .getByRole('navigation', { name: 'Workbench' })
     .getByRole('button', { name: /Results/ })
     .click();
+  await expect(page.getByText(/Research-based reference ranges produce/i)).toBeVisible();
   await page.getByRole('button', { name: 'Finish report' }).click();
   await expect(page.getByRole('heading', { name: 'Your report is finished' })).toBeVisible();
   await page.getByRole('button', { name: /Start again/ }).click();

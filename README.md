@@ -76,6 +76,10 @@ Reports never include backup contents or calibration values. They also omit MAC 
 numbers, raw HID packets, and sample streams. See [PRIVACY.md](./PRIVACY.md) for the complete data
 boundary.
 
+Diagnostic conclusions use the documented, research-based reference profile in
+[THRESHOLDS.md](./THRESHOLDS.md). A result of “Potential issue” describes an observed pattern, not a
+repair diagnosis; “Inconclusive” is reserved for captures without enough usable input.
+
 ## Credits and references
 
 JoyConBench is independent, but it benefits from public research and ideas shared by the controller

@@ -1517,7 +1517,7 @@ h3 {
   background: currentColor;
 }
 .status-pass {
-  color: var(--ink);
+  color: var(--green);
 }
 .status-potential-issue {
   color: var(--red);

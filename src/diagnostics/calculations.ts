@@ -8,11 +8,13 @@ import type {
 
 export interface ThresholdProfile {
   version: string;
-  validated: boolean;
+  classification: 'measurement-only' | 'research-based' | 'hardware-validated';
   stick: {
     neutralOffset: number;
     jitterRms: number;
     minimumRange: number;
+    releaseArm: number;
+    centerReturn: number;
     snapback: number;
   };
   imu: { gyroBiasDps: number; gyroNoiseDps: number; motionRangeDps: number };
@@ -20,10 +22,17 @@ export interface ThresholdProfile {
 }
 
 export const DEFAULT_THRESHOLDS: ThresholdProfile = {
-  version: 'experimental-1',
-  validated: false,
-  stick: { neutralOffset: 0.08, jitterRms: 0.025, minimumRange: 0.78, snapback: 0.18 },
-  imu: { gyroBiasDps: 5, gyroNoiseDps: 2.5, motionRangeDps: 50 },
+  version: 'research-1',
+  classification: 'research-based',
+  stick: {
+    neutralOffset: 0.08,
+    jitterRms: 0.025,
+    minimumRange: 0.45,
+    releaseArm: 0.4,
+    centerReturn: 0.12,
+    snapback: 0.1,
+  },
+  imu: { gyroBiasDps: 10, gyroNoiseDps: 2.5, motionRangeDps: 50 },
   packets: { minimumRateHz: 52, maximumP95IntervalMs: 30, maximumDropRatio: 0.03 },
 };
 
@@ -45,8 +54,25 @@ function statusFromThreshold(
   profile: ThresholdProfile,
   hasPotentialIssue: boolean
 ): DiagnosticResult['status'] {
-  if (!profile.validated) return 'inconclusive';
+  if (profile.classification === 'measurement-only') return 'inconclusive';
   return hasPotentialIssue ? 'potential-issue' : 'pass';
+}
+
+function classificationEnabled(profile: ThresholdProfile) {
+  return profile.classification !== 'measurement-only';
+}
+
+function referenceRange(profile: ThresholdProfile) {
+  return profile.classification === 'hardware-validated'
+    ? 'hardware-validated reference range'
+    : 'research-based reference range';
+}
+
+function thresholdMetadata(profile: ThresholdProfile) {
+  return {
+    thresholdProfile: profile.version,
+    thresholdBasis: profile.classification,
+  };
 }
 
 function stickPoints(samples: ControllerSample[], stick: StickId) {
@@ -77,6 +103,7 @@ export function analyzeNeutral(
     title: `${capitalize(stick)} stick neutral`,
     status: statusFromThreshold(profile, potential),
     measurements: {
+      ...thresholdMetadata(profile),
       centerOffset: round(centerOffset),
       horizontalOffset: round(center.x),
       verticalOffset: round(center.y),
@@ -85,11 +112,11 @@ export function analyzeNeutral(
       sampleCount: points.length,
     },
     explanation: 'The stick was measured without being touched for five seconds.',
-    interpretation: profile.validated
+    interpretation: classificationEnabled(profile)
       ? potential
-        ? 'The observed neutral position or noise exceeds the validated heuristic range.'
-        : 'The observed neutral position and noise are within the validated heuristic range.'
-      : 'Measurements are available, but this heuristic profile has not completed hardware validation.',
+        ? `The observed neutral position or noise exceeds the ${referenceRange(profile)}.`
+        : `The observed neutral position and noise are within the ${referenceRange(profile)}.`
+      : 'Measurements are available, but this profile does not classify them.',
     recommendations: potential
       ? [
           'Retest on a stable surface.',
@@ -126,6 +153,7 @@ export function analyzeRange(
     title: `${capitalize(stick)} stick circular range`,
     status: statusFromThreshold(profile, potential),
     measurements: {
+      ...thresholdMetadata(profile),
       angularCoveragePercent: round(coverage * 100, 1),
       minimumReach: round(minimumReach),
       maximumReach: round(maximumReach),
@@ -133,11 +161,11 @@ export function analyzeRange(
       sampleCount: points.length,
     },
     explanation: 'Maximum reach was compared across 24 equal directional sectors.',
-    interpretation: profile.validated
+    interpretation: classificationEnabled(profile)
       ? potential
         ? 'The captured path suggests restricted or uneven stick travel.'
-        : 'The captured path reached the validated range in every direction.'
-      : 'Range is measured, but hardware validation is required before classifying it.',
+        : `The captured path reached the ${referenceRange(profile)} in every direction.`
+      : 'Range is measured, but this profile does not classify it.',
     recommendations: potential
       ? [
           'Repeat three slow rotations.',
@@ -156,16 +184,41 @@ export function analyzeSnapback(
   const points = stickPoints(samples, stick);
   if (points.length < 20)
     return insufficient('stick-snapback', 'Release and snapback', 'stick samples');
-  let armed = false;
+  let releaseDirection: Vector2 | null = null;
+  let crossedCenter = false;
+  let framesAfterCenter = 0;
   let peakAfterRelease = 0;
   let releases = 0;
   for (const point of points) {
     const radius = magnitude(point);
-    if (radius > 0.75) armed = true;
-    if (armed && radius < 0.2) {
-      releases += 1;
-      peakAfterRelease = Math.max(peakAfterRelease, radius);
-      armed = false;
+    if (!releaseDirection) {
+      if (radius >= profile.stick.releaseArm) {
+        releaseDirection = { x: point.x / radius, y: point.y / radius };
+      }
+      continue;
+    }
+    if (!crossedCenter) {
+      if (radius >= profile.stick.releaseArm) {
+        releaseDirection = { x: point.x / radius, y: point.y / radius };
+      } else if (radius <= profile.stick.centerReturn) {
+        releases += 1;
+        crossedCenter = true;
+        framesAfterCenter = 0;
+      }
+      continue;
+    }
+
+    peakAfterRelease = Math.max(
+      peakAfterRelease,
+      -(point.x * releaseDirection.x + point.y * releaseDirection.y)
+    );
+    framesAfterCenter += 1;
+    if (radius >= profile.stick.releaseArm) {
+      releaseDirection = { x: point.x / radius, y: point.y / radius };
+      crossedCenter = false;
+    } else if (framesAfterCenter >= 8) {
+      releaseDirection = null;
+      crossedCenter = false;
     }
   }
   const potential = releases > 0 && peakAfterRelease > profile.stick.snapback;
@@ -173,16 +226,20 @@ export function analyzeSnapback(
     testId: `stick-snapback-${stick}`,
     title: `${capitalize(stick)} stick release`,
     status: releases === 0 ? 'inconclusive' : statusFromThreshold(profile, potential),
-    measurements: { detectedReleases: releases, peakReturnExcursion: round(peakAfterRelease) },
+    measurements: {
+      ...thresholdMetadata(profile),
+      detectedReleases: releases,
+      peakOppositeExcursion: round(peakAfterRelease),
+    },
     explanation: 'Return-to-center behavior was measured after high-reach movements.',
     interpretation:
       releases === 0
         ? 'No clear release was captured. Repeat the test with a firm flick and release.'
-        : profile.validated
+        : classificationEnabled(profile)
           ? potential
             ? 'The return path shows a potential snapback pattern.'
-            : 'The captured releases returned within the validated heuristic range.'
-          : 'Release events were captured, but snapback thresholds remain experimental.',
+            : `The captured releases returned within the ${referenceRange(profile)}.`
+          : 'Release events were captured, but this profile does not classify them.',
     recommendations:
       releases === 0
         ? ['Repeat the guided release test.']
@@ -226,16 +283,17 @@ export function analyzeStationaryImu(
     title: 'Gyroscope at rest',
     status: statusFromThreshold(profile, potential),
     measurements: {
+      ...thresholdMetadata(profile),
       gyroBiasDps: round(bias),
       gyroNoiseDps: round(noise),
       frameCount: vectors.length,
     },
     explanation: 'Gyroscope bias and noise were measured while the controller was stationary.',
-    interpretation: profile.validated
+    interpretation: classificationEnabled(profile)
       ? potential
-        ? 'The stationary sensor signal exceeds the validated heuristic range.'
-        : 'The stationary sensor signal is within the validated heuristic range.'
-      : 'Sensor measurements are available, but the heuristic profile is not validated.',
+        ? `The stationary sensor signal exceeds the ${referenceRange(profile)}.`
+        : `The stationary sensor signal is within the ${referenceRange(profile)}.`
+      : 'Sensor measurements are available, but this profile does not classify them.',
     recommendations: potential
       ? [
           'Retest on a motionless surface.',
@@ -270,6 +328,7 @@ export function analyzeMotion(
     title: 'Gyroscope axes',
     status: statusFromThreshold(profile, responsiveAxes !== 3),
     measurements: {
+      ...thresholdMetadata(profile),
       gyroRangeX: round(gyroRanges.x, 1),
       gyroRangeY: round(gyroRanges.y, 1),
       gyroRangeZ: round(gyroRanges.z, 1),
@@ -279,10 +338,11 @@ export function analyzeMotion(
       responsiveAxes,
     },
     explanation: 'Each gyroscope and accelerometer axis was checked for a changing signal.',
-    interpretation:
-      responsiveAxes === 3
-        ? 'All three gyroscope axes responded during the motion test.'
-        : 'One or more motion axes did not show the expected response.',
+    interpretation: classificationEnabled(profile)
+      ? responsiveAxes === 3
+        ? `All three gyroscope axes reached the ${referenceRange(profile)}.`
+        : 'One or more motion axes did not show the expected response.'
+      : 'Axis responses were measured, but this profile does not classify them.',
     recommendations:
       responsiveAxes === 3
         ? ['No action is suggested by this functional check.']
@@ -322,6 +382,7 @@ export function analyzePackets(
     title: 'Packet stability',
     status: statusFromThreshold(profile, potential),
     measurements: {
+      ...thresholdMetadata(profile),
       rateHz: round(rate, 1),
       medianIntervalMs: round(sorted[Math.floor(sorted.length / 2)], 1),
       p95IntervalMs: round(p95, 1),
@@ -329,11 +390,11 @@ export function analyzePackets(
       dropPercent: round(dropRatio * 100, 1),
     },
     explanation: 'Input timing and controller packet-counter continuity were measured.',
-    interpretation: profile.validated
+    interpretation: classificationEnabled(profile)
       ? potential
         ? 'The connection showed potential instability.'
-        : 'The connection remained within the validated stability range.'
-      : 'Packet measurements are available, but the stability heuristic is not validated.',
+        : `The connection remained within the ${referenceRange(profile)}.`
+      : 'Packet measurements are available, but this profile does not classify them.',
     recommendations: potential
       ? ['Move closer to the computer.', 'Reduce Bluetooth interference.', 'Reconnect and repeat.']
       : ['No action is suggested by this measurement.'],

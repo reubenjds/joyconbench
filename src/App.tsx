@@ -774,8 +774,8 @@ function ResultsView({ results }: { results: DiagnosticResult[] }) {
         <div>
           <h2>{issueCount === 1 ? 'potential issue' : 'potential issues'}</h2>
           <p>
-            Facts and interpretations stay separate. Experimental thresholds are marked
-            inconclusive.
+            Research-based reference ranges produce practical conclusions. Inconclusive means the
+            test did not capture enough usable input.
           </p>
         </div>
       </Panel>
