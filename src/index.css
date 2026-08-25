@@ -534,12 +534,6 @@ h3 {
 .joystick-monitor-heading h3 {
   font-size: 0.74rem;
 }
-.joystick-monitor-heading output {
-  color: var(--red);
-  font-size: 0.72rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
 .joystick-monitor-body {
   display: grid;
   grid-template-columns: minmax(120px, 1fr) 92px;

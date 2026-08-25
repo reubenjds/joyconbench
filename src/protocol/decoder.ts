@@ -1,6 +1,6 @@
 import {
   EMPTY_BUTTONS,
-  type BatteryLevel,
+  type BatteryStatus,
   type ConnectionKind,
   type ControllerKind,
   type ControllerSample,
@@ -40,15 +40,11 @@ function readVector(data: DataView, offset: number, scale: number): Vector3 {
   };
 }
 
-function readBattery(value: number): BatteryLevel {
-  const charging = (value & 0x10) !== 0;
-  if (charging) return 'charging';
-  const level = (value >> 5) & 0x07;
-  if (level >= 4) return 'full';
-  if (level === 3) return 'medium';
-  if (level === 2) return 'low';
-  if (level === 1) return 'critical';
-  return 'unknown';
+function readBattery(value: number): BatteryStatus {
+  const nibble = value >> 4;
+  const level = nibble & 0x0e;
+  const percentage = level >= 8 ? 100 : level >= 6 ? 75 : level >= 4 ? 50 : level >= 2 ? 25 : 0;
+  return { percentage, charging: (nibble & 0x01) !== 0 };
 }
 
 function decodeImu(data: DataView): readonly [ImuFrame, ImuFrame, ImuFrame] {

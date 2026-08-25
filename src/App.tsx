@@ -298,7 +298,10 @@ export default function App() {
             <span className="device-dot" aria-hidden="true" />
             <strong>{identity.displayName}</strong>
             <span>
-              {controller.latestSample?.battery ?? 'reading battery'} · {identity.connection}
+              {controller.latestSample
+                ? formatBattery(controller.latestSample.battery)
+                : 'Reading battery'}{' '}
+              · {identity.connection}
             </span>
             <Button className="button-text" onClick={startAgain}>
               Test another controller
@@ -353,7 +356,9 @@ export default function App() {
             <ControllerTools
               adapter={controller.adapter}
               identity={identity}
-              batteryCritical={controller.latestSample?.battery === 'critical'}
+              batteryCritical={
+                controller.latestSample !== null && controller.latestSample.battery.percentage <= 25
+              }
               initialColors={controller.colors}
               onColorsChange={controller.setColors}
             />
@@ -1029,4 +1034,8 @@ function testResultIsPresent(id: TestDefinition['id'], resultIds: Set<string>) {
 function resultLabel(status: DiagnosticResult['status']) {
   if (status === 'potential-issue') return 'Potential issue';
   return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function formatBattery(battery: ControllerSample['battery']) {
+  return `${battery.percentage}% battery${battery.charging ? ', charging' : ''}`;
 }

@@ -19,7 +19,7 @@ describe('LiveImu', () => {
           accelerometer: { x: 0.25, y: -0.5, z: 1 },
         },
       ],
-      battery: 'full',
+      battery: { percentage: 100, charging: false },
       packetCounter: 1,
       connection: 'bluetooth',
     };

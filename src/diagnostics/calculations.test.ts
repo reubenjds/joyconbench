@@ -22,7 +22,7 @@ function sample(index: number, x = 0, y = 0): ControllerSample {
       accelerometer: { x: index / 10, y: index / 20, z: 1 },
       gyroscope: { x: index * 2, y: -index * 2, z: index },
     })) as unknown as ControllerSample['imuFrames'],
-    battery: 'full',
+    battery: { percentage: 100, charging: false },
     packetCounter: index & 0xff,
     connection: 'bluetooth',
   };

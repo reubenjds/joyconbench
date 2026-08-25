@@ -29,7 +29,7 @@ export function LiveJoysticks({
         ))}
       </div>
 
-      <p>Nominal centre 2048 · normalized travel · recent movement trail</p>
+      <p>Nominal centre 2048 · recent movement trail</p>
     </section>
   );
 }
@@ -55,18 +55,12 @@ function StickMonitor({
     })
     .join(' ');
   const current = normalized ? plotPoint(normalized) : null;
-  const travel = normalized ? Math.hypot(normalized.x, normalized.y) * 100 : null;
   const title = `${capitalize(stick)} stick`;
 
   return (
     <article className="joystick-monitor">
       <div className="joystick-monitor-heading">
         <h3>{title}</h3>
-        <output
-          aria-label={`${title} travel ${travel === null ? 'unavailable' : `${formatTravel(travel)} percent`}`}
-        >
-          {travel === null ? '—' : `${formatTravel(travel)}%`}
-        </output>
       </div>
 
       <div className="joystick-monitor-body">
@@ -133,10 +127,6 @@ function plotPoint(point: Vector2) {
 function signed(value: number) {
   if (Math.abs(value) < 0.0005) return '0.000';
   return `${value > 0 ? '+' : '−'}${Math.abs(value).toFixed(3)}`;
-}
-
-function formatTravel(value: number) {
-  return Math.min(999.9, value).toFixed(1);
 }
 
 function capitalize(value: string) {

@@ -30,7 +30,7 @@ describe('Nintendo report decoder', () => {
     );
 
     expect(sample.packetCounter).toBe(254);
-    expect(sample.battery).toBe('full');
+    expect(sample.battery).toEqual({ percentage: 100, charging: false });
     expect(sample.buttons.a).toBe(true);
     expect(sample.buttons.zr).toBe(true);
     expect(sample.buttons.up).toBe(true);
@@ -43,6 +43,25 @@ describe('Nintendo report decoder', () => {
     expect(sample.imuFrames[0].gyroscope.x).toBeCloseTo(61.03, 2);
     expect(sample.imuFrames[0].gyroscope.y).toBeCloseTo(-30.515, 3);
     expect(sample.imuFrames[0].gyroscope.z).toBeCloseTo(15.2575, 3);
+  });
+
+  it.each([
+    [0x00, 0, false],
+    [0x20, 25, false],
+    [0x40, 50, false],
+    [0x60, 75, false],
+    [0x80, 100, false],
+    [0x90, 100, true],
+  ])('decodes battery byte 0x%s as %s%%', (batteryByte, percentage, charging) => {
+    const bytes = new Uint8Array(48);
+    bytes[1] = batteryByte;
+    const sample = decodeStandardFullReport(
+      0x30,
+      new DataView(bytes.buffer),
+      'joycon-left',
+      'bluetooth'
+    );
+    expect(sample.battery).toEqual({ percentage, charging });
   });
 
   it('rejects malformed reports', () => {

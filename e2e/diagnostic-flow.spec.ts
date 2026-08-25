@@ -99,6 +99,8 @@ test('connects a mocked Pro Controller directly into the button playground', asy
   await expect(page.getByRole('heading', { name: 'Joystick movement' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Left stick' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Right stick' })).toBeVisible();
+  await expect(page.locator('.device-strip')).toContainText('100% battery');
+  await expect(page.locator('.joystick-monitor-heading output')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Stick drift' })).toBeVisible();
   const testCards = page.locator('.test-card');
   const regularCardBox = await testCards.nth(1).boundingBox();

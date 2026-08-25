@@ -3,7 +3,11 @@ export const SUPPORTED_PRODUCT_IDS = [0x2006, 0x2007, 0x2009] as const;
 
 export type ControllerKind = 'joycon-left' | 'joycon-right' | 'pro-controller';
 export type ConnectionKind = 'bluetooth' | 'usb' | 'unknown';
-export type BatteryLevel = 'unknown' | 'critical' | 'low' | 'medium' | 'full' | 'charging';
+export type BatteryPercentage = 0 | 25 | 50 | 75 | 100;
+export interface BatteryStatus {
+  percentage: BatteryPercentage;
+  charging: boolean;
+}
 export type StickId = 'left' | 'right';
 
 export type Vector2 = { x: number; y: number };
@@ -47,7 +51,7 @@ export interface ControllerSample {
   sticks: Partial<Record<StickId, Vector2>>;
   rawSticks: Partial<Record<StickId, Vector2>>;
   imuFrames: readonly [ImuFrame, ImuFrame, ImuFrame];
-  battery: BatteryLevel;
+  battery: BatteryStatus;
   packetCounter: number;
   connection: ConnectionKind;
 }
