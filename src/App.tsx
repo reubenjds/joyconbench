@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { CaptureCountdown } from './components/CaptureCountdown';
 import { ControllerDiagram } from './components/ControllerDiagram';
 import { ControllerTools } from './components/ControllerTools';
 import { LiveJoysticks } from './components/LiveJoysticks';
@@ -626,10 +627,7 @@ function TestView({
   return (
     <PageFrame eyebrow={`Test ${test.number} · ${test.short}`} title={test.title}>
       <div className="capture-instruction">
-        <div className="capture-clock">
-          <strong>{test.duration / 1000}</strong>
-          <span>seconds</span>
-        </div>
+        <CaptureCountdown durationMs={test.duration} running={running} complete={complete} />
         <div>
           <h2>{instructionTitle(test.id)}</h2>
           <p>{test.description}</p>

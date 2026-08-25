@@ -908,12 +908,18 @@ h3 {
 .capture-clock {
   width: 98px;
   height: 98px;
-  display: grid;
-  place-items: center;
-  align-content: center;
+  position: relative;
+  overflow: hidden;
   border: 1px solid var(--ink);
   border-radius: 50%;
   color: var(--red);
+}
+.capture-clock-output {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  align-content: center;
 }
 .capture-clock strong {
   font-size: 2.8rem;
@@ -926,6 +932,20 @@ h3 {
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
+}
+.capture-progress {
+  height: 4px;
+  position: absolute;
+  right: 15px;
+  bottom: 13px;
+  left: 15px;
+  overflow: hidden;
+  background: var(--line);
+}
+.capture-progress i {
+  height: 100%;
+  display: block;
+  background: var(--blue);
 }
 .capture-instruction p {
   margin-bottom: 0;
