@@ -113,6 +113,7 @@ test('connects a mocked Pro Controller directly into the button playground', asy
   await gyroCard.getByRole('button').click();
   await expect(page.getByRole('heading', { name: 'Gyroscope at rest' })).toBeVisible();
   await expect(page.getByRole('img', { name: /Live gyroscope X, Y, and Z axes/i })).toBeVisible();
+  await expect(page.getByRole('img', { name: /Live gyroscope X and Y vector/i })).toBeVisible();
   await expect(page.getByRole('status', { name: 'Gyroscope X', exact: true })).toContainText('°/s');
   await page.getByRole('button', { name: /Back to test suite/ }).click();
   await expect(page.locator('.diagram-panel .controller-diagram')).toHaveAttribute(
@@ -200,6 +201,19 @@ test('connected workbench layouts have no horizontal overflow at a narrow width'
     clientWidth: document.documentElement.clientWidth,
   }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+
+  await page
+    .getByRole('article')
+    .filter({ hasText: 'Gyroscope at rest' })
+    .getByRole('button')
+    .click();
+  await expect(page.getByRole('img', { name: /Live gyroscope X and Y vector/i })).toBeVisible();
+  const gyroDimensions = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(gyroDimensions.scrollWidth).toBeLessThanOrEqual(gyroDimensions.clientWidth);
+  await page.getByRole('button', { name: /Back to test suite/ }).click();
 
   await page
     .getByRole('navigation', { name: 'Workbench' })

@@ -27,6 +27,8 @@ describe('LiveImu', () => {
     render(<LiveImu samples={[sample]} />);
 
     expect(screen.getByRole('img', { name: /Live gyroscope X, Y, and Z axes/i })).toBeVisible();
+    expect(screen.getByRole('img', { name: /Live gyroscope X and Y vector/i })).toBeVisible();
+    expect(screen.getByText('X/Y vector')).toBeVisible();
     expect(screen.getByLabelText('Gyroscope X')).toHaveTextContent('12.25 °/s');
     expect(screen.getByLabelText('Gyroscope Y')).toHaveTextContent('-7.50 °/s');
     expect(screen.getByLabelText('Accelerometer Z')).toHaveTextContent('1.00 g');

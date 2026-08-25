@@ -1067,7 +1067,7 @@ h3 {
 }
 .imu-monitor-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 210px;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 260px);
   border-bottom: 1px solid var(--line);
 }
 .imu-chart {
@@ -1132,19 +1132,90 @@ h3 {
 .imu-grid-vertical {
   stroke-dasharray: 4 5;
 }
-.imu-readings {
-  margin: 0;
+.imu-vector-chart {
+  min-width: 0;
   padding: 18px 0 14px 18px;
+}
+.imu-vector-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 0.65rem;
+}
+.imu-vector-heading strong {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.imu-vector-heading span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.imu-vector-chart svg {
+  width: 100%;
+  max-height: 220px;
+  display: block;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+.imu-vector-boundary,
+.imu-vector-guide {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.imu-vector-boundary {
+  stroke: var(--ink);
+}
+.imu-vector-axis {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
+}
+.imu-vector-trace,
+.imu-vector-line {
+  fill: none;
+  stroke: var(--blue);
+}
+.imu-vector-trace {
+  stroke-width: 2.5;
+  opacity: 0.48;
+}
+.imu-vector-line {
+  stroke-width: 1.5;
+}
+.imu-vector-point {
+  fill: var(--red);
+  stroke: var(--white);
+  stroke-width: 2;
+}
+.imu-vector-chart text {
+  fill: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+.imu-readings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0;
 }
 .imu-readings > div {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 14px;
-  border-bottom: 1px solid var(--line);
-  padding: 12px 0;
+  border-right: 1px solid var(--line);
+  padding: 13px 14px;
 }
 .imu-readings > div:first-child {
-  padding-top: 0;
+  padding-left: 0;
+}
+.imu-readings > div:last-child {
+  border-right: 0;
+  padding-right: 0;
 }
 .imu-readings dt {
   display: flex;
@@ -1922,10 +1993,16 @@ footer {
     border-right: 0;
     padding-right: 0;
   }
+  .imu-vector-chart {
+    border-top: 1px solid var(--line);
+    padding-left: 0;
+  }
+  .imu-vector-chart svg {
+    max-height: 280px;
+  }
   .imu-readings {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    padding: 14px 0 0;
+    margin-top: 14px;
+    border-top: 1px solid var(--line);
   }
   .imu-readings > div,
   .imu-readings > div:first-child {
