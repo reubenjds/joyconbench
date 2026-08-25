@@ -1,6 +1,11 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type CSSProperties } from 'react';
 import type { NintendoControllerAdapter } from '../adapters/NintendoControllerAdapter';
-import { validateSettingsBackup } from '../protocol/settings';
+import {
+  decodeSettingsBackup,
+  encodeSettingsBackup,
+  isBinarySettingsBackup,
+  validateSettingsBackup,
+} from '../protocol/settings';
 import type {
   ControllerColors,
   ControllerIdentity,
@@ -9,7 +14,23 @@ import type {
 import { ControllerDiagram } from './ControllerDiagram';
 import { Button, Modal, Panel } from './ui';
 
-const DEFAULT_COLORS: ControllerColors = { body: '#0000ff', buttons: '#111111' };
+const RETAIL_COLORS: ReadonlyArray<{ name: string; colors: ControllerColors }> = [
+  { name: 'Gray', colors: { body: '#828282', buttons: '#0f0f0f' } },
+  { name: 'Neon red', colors: { body: '#ff3c28', buttons: '#1e0a0a' } },
+  { name: 'Neon blue', colors: { body: '#0ab9e6', buttons: '#001e1e' } },
+  { name: 'Neon yellow', colors: { body: '#e6ff00', buttons: '#142800' } },
+  { name: 'Neon green', colors: { body: '#1edc00', buttons: '#002800' } },
+  { name: 'Neon pink', colors: { body: '#ff3278', buttons: '#28001e' } },
+  { name: 'Red', colors: { body: '#e10f00', buttons: '#280a0a' } },
+  { name: 'Blue', colors: { body: '#4655f5', buttons: '#00000a' } },
+  { name: 'Neon purple', colors: { body: '#b400e6', buttons: '#140014' } },
+  { name: 'Neon orange', colors: { body: '#faa005', buttons: '#0f0a00' } },
+  { name: 'White', colors: { body: '#e6e6e6', buttons: '#323232' } },
+  { name: 'Pastel pink', colors: { body: '#ffafaf', buttons: '#372d2d' } },
+  { name: 'Pastel yellow', colors: { body: '#f5ff82', buttons: '#32332d' } },
+  { name: 'Pastel purple', colors: { body: '#f0cbeb', buttons: '#373037' } },
+  { name: 'Pastel green', colors: { body: '#bcffc8', buttons: '#2d322d' } },
+];
 
 export function ControllerTools({
   adapter,
@@ -20,7 +41,7 @@ export function ControllerTools({
   identity: ControllerIdentity;
   batteryCritical: boolean;
 }) {
-  const [colors, setColors] = useState(DEFAULT_COLORS);
+  const [colors, setColors] = useState(() => defaultColors(identity));
   const [pendingBackup, setPendingBackup] = useState<ControllerSettingsBackup | null>(null);
   const [pendingFile, setPendingFile] = useState('');
   const [confirmColor, setConfirmColor] = useState(false);
@@ -53,8 +74,11 @@ export function ControllerTools({
         setProgress(Math.round((completed / total) * 100));
         setMessage(label);
       });
-      downloadJson(backup, `${identity.kind}-settings-${dateStamp()}.json`);
-      setMessage('Settings backup downloaded. Keep it with the matching controller.');
+      downloadBinary(
+        await encodeSettingsBackup(backup),
+        `${identity.kind}-settings-${dateStamp()}.bin`
+      );
+      setMessage('Binary settings backup downloaded. Keep it with the matching controller.');
     });
   };
 
@@ -67,8 +91,19 @@ export function ControllerTools({
       return;
     }
     try {
-      const parsed = JSON.parse(await file.text()) as unknown;
-      const backup = await validateSettingsBackup(parsed, identity);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let backup: ControllerSettingsBackup;
+      if (isBinarySettingsBackup(bytes)) {
+        backup = await decodeSettingsBackup(bytes, identity);
+      } else {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(new TextDecoder().decode(bytes));
+        } catch {
+          throw new Error('Choose a JoyConBench .bin backup or legacy JoyConBench .json backup.');
+        }
+        backup = await validateSettingsBackup(parsed, identity);
+      }
       setPendingBackup(backup);
       setPendingFile(file.name);
       setConfirmRestore(true);
@@ -138,6 +173,40 @@ export function ControllerTools({
               <code>{colors.buttons.toUpperCase()}</code>
             </label>
           </div>
+          <div className="retail-colors">
+            <div className="retail-colors-heading">
+              <strong>Retail colours</strong>
+              <span>Choose a preset, then write</span>
+            </div>
+            <div className="retail-color-grid">
+              {RETAIL_COLORS.map((preset) => {
+                const selected =
+                  colors.body.toLowerCase() === preset.colors.body &&
+                  colors.buttons.toLowerCase() === preset.colors.buttons;
+                return (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    className={selected ? 'retail-color selected' : 'retail-color'}
+                    aria-pressed={selected}
+                    onClick={() => setColors(preset.colors)}
+                  >
+                    <span
+                      className="retail-color-swatch"
+                      style={
+                        {
+                          '--retail-body': preset.colors.body,
+                          '--retail-buttons': preset.colors.buttons,
+                        } as CSSProperties
+                      }
+                      aria-hidden="true"
+                    />
+                    <span>{preset.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="tool-actions">
             <Button className="button-secondary" onClick={loadColors} disabled={busy}>
               Read current colours
@@ -170,13 +239,14 @@ export function ControllerTools({
               ref={fileInput}
               className="sr-only"
               type="file"
-              accept="application/json,.json"
+              accept="application/octet-stream,application/json,.bin,.json"
               onChange={chooseBackup}
             />
           </div>
           <p className="tool-fine-print">
-            Restore accepts only intact JoyConBench backups for the same controller product type.
-            Every chunk is read back and verified.
+            JoyConBench .bin files are compact settings backups, not the old toolkit’s 512 KB raw
+            SPI images. Legacy JoyConBench JSON backups are still accepted. Every chunk is checked
+            before writing and verified afterward.
           </p>
         </Panel>
       </div>
@@ -231,15 +301,21 @@ export function ControllerTools({
   );
 }
 
-function downloadJson(value: unknown, filename: string) {
-  const url = URL.createObjectURL(
-    new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' })
-  );
+function downloadBinary(value: Uint8Array, filename: string) {
+  const bytes = new Uint8Array(value.byteLength);
+  bytes.set(value);
+  const url = URL.createObjectURL(new Blob([bytes.buffer], { type: 'application/octet-stream' }));
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function defaultColors(identity: ControllerIdentity): ControllerColors {
+  if (identity.kind === 'joycon-left') return RETAIL_COLORS[2].colors;
+  if (identity.kind === 'joycon-right') return RETAIL_COLORS[1].colors;
+  return RETAIL_COLORS[0].colors;
 }
 
 function dateStamp() {

@@ -10,12 +10,12 @@ required.
 
 ## Test bench
 
-- Live controller rendering and button checklist immediately after connection
+- Live controller rendering, three-axis gyroscope rates, and a button checklist immediately after connection
 - Independently selectable drift, circular-range, snapback, IMU, motion, packet, LED, and rumble
   checks
 - In-memory results with printable, privacy-safe JSON and plain-text reports
 - One-click **Start again** at the end of a report for testing the next Joy-Con
-- Body and button colour editing plus fast, scoped settings backup and restore
+- Body and button colour editing with standard retail presets plus fast, scoped settings backup and restore
 
 ## Browser and hardware support
 
@@ -65,10 +65,11 @@ production and same-repository pull-request previews.
 
 Diagnostics use transient commands for full input reports, IMU, LEDs, and bounded rumble. The
 optional controller tools can read and write only documented colour, factory-calibration, and
-sensor/stick-parameter regions after explicit confirmation. Backups contain 97 bytes rather than a
-full 512 KB flash dump, exclude serial/pairing/firmware/patch/unknown regions, include a SHA-256
-checksum and controller product type, and are verified after restore. SPI erase and all firmware
-commands remain blocked.
+sensor/stick-parameter regions after explicit confirmation. Compact `.bin` backups contain 97 bytes
+rather than the old toolkit's raw 512 KB flash dump, exclude serial/pairing/firmware/patch/unknown
+regions, include a SHA-256 checksum and controller product type, and are verified after restore.
+Legacy JoyConBench JSON backups remain importable. SPI erase and all firmware commands remain
+blocked.
 
 Reports never include backup contents or calibration values. They also omit MAC addresses, serial
 numbers, raw HID packets, and sample streams. See [PRIVACY.md](./PRIVACY.md) for the complete data

@@ -8,6 +8,9 @@ import type {
 export const COLOR_USE_ADDRESS = 0x601b;
 export const COLOR_ADDRESS = 0x6050;
 export const COLOR_LENGTH = 6;
+const BINARY_BACKUP_MAGIC = new TextEncoder().encode('JCBSET01');
+const BINARY_BACKUP_HEADER_LENGTH = 20;
+const BINARY_BACKUP_CHECKSUM_LENGTH = 32;
 
 export const SETTINGS_REGIONS = [
   { name: 'color-use', address: 0x601b, length: 1 },
@@ -112,6 +115,104 @@ export async function validateSettingsBackup(
   return backup as ControllerSettingsBackup;
 }
 
+export async function encodeSettingsBackup(backup: ControllerSettingsBackup) {
+  const validated = await validateSettingsBackup(backup);
+  const payloadLength = validated.segments.reduce(
+    (total, segment) => total + 6 + hexToBytes(segment.dataHex).length,
+    0
+  );
+  const bytes = new Uint8Array(
+    BINARY_BACKUP_HEADER_LENGTH + payloadLength + BINARY_BACKUP_CHECKSUM_LENGTH
+  );
+  const view = new DataView(bytes.buffer);
+  const createdAt = Date.parse(validated.createdAt);
+  if (!Number.isFinite(createdAt)) throw new Error('The backup timestamp is invalid.');
+
+  bytes.set(BINARY_BACKUP_MAGIC, 0);
+  view.setUint8(8, controllerKindCode(validated.controller.kind));
+  view.setUint16(9, validated.controller.productId, true);
+  view.setFloat64(11, createdAt, true);
+  view.setUint8(19, validated.segments.length);
+
+  let cursor = BINARY_BACKUP_HEADER_LENGTH;
+  for (const segment of validated.segments) {
+    const data = hexToBytes(segment.dataHex);
+    view.setUint32(cursor, segment.address, true);
+    view.setUint16(cursor + 4, data.length, true);
+    bytes.set(data, cursor + 6);
+    cursor += 6 + data.length;
+  }
+  bytes.set(hexToBytes(validated.checksum.hex), cursor);
+  return bytes;
+}
+
+export function isBinarySettingsBackup(value: Uint8Array) {
+  return BINARY_BACKUP_MAGIC.every((byte, index) => value[index] === byte);
+}
+
+export async function decodeSettingsBackup(
+  value: ArrayBuffer | Uint8Array,
+  identity?: ControllerIdentity
+) {
+  const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
+  if (
+    bytes.length < BINARY_BACKUP_HEADER_LENGTH + BINARY_BACKUP_CHECKSUM_LENGTH ||
+    !isBinarySettingsBackup(bytes)
+  ) {
+    throw new Error('This is not a JoyConBench binary settings backup.');
+  }
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const kind = controllerKindFromCode(view.getUint8(8));
+  const productId = view.getUint16(9, true);
+  const timestamp = view.getFloat64(11, true);
+  const regionCount = view.getUint8(19);
+  if (!kind || !Number.isFinite(timestamp)) throw new Error('The binary backup header is invalid.');
+  if (regionCount !== SETTINGS_REGIONS.length) {
+    throw new Error('This binary backup does not contain the expected settings regions.');
+  }
+
+  let cursor = BINARY_BACKUP_HEADER_LENGTH;
+  const segments: ControllerSettingsSegment[] = [];
+  for (const region of SETTINGS_REGIONS) {
+    if (cursor + 6 > bytes.length - BINARY_BACKUP_CHECKSUM_LENGTH) {
+      throw new Error('The binary backup is incomplete.');
+    }
+    const address = view.getUint32(cursor, true);
+    const length = view.getUint16(cursor + 4, true);
+    if (address !== region.address || length !== region.length) {
+      throw new Error(`The ${region.name} binary settings region is invalid.`);
+    }
+    cursor += 6;
+    if (cursor + length > bytes.length - BINARY_BACKUP_CHECKSUM_LENGTH) {
+      throw new Error('The binary backup is incomplete.');
+    }
+    segments.push({
+      name: region.name,
+      address,
+      dataHex: bytesToHex(bytes.slice(cursor, cursor + length)),
+    });
+    cursor += length;
+  }
+  if (cursor + BINARY_BACKUP_CHECKSUM_LENGTH !== bytes.length) {
+    throw new Error('The binary backup has unexpected trailing data.');
+  }
+
+  return validateSettingsBackup(
+    {
+      format: 'joyconbench-controller-settings-v1',
+      createdAt: new Date(timestamp).toISOString(),
+      controller: { kind, productId },
+      segments,
+      checksum: {
+        algorithm: 'SHA-256',
+        hex: bytesToHex(bytes.slice(cursor)),
+      },
+    },
+    identity
+  );
+}
+
 function colorToBytes(color: string) {
   if (!/^#[0-9a-f]{6}$/i.test(color))
     throw new Error('Controller colours must use six-digit hex values.');
@@ -130,4 +231,17 @@ function canonicalBackup(value: Omit<ControllerSettingsBackup, 'checksum'>) {
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return bytesToHex(new Uint8Array(digest));
+}
+
+function controllerKindCode(kind: ControllerIdentity['kind']) {
+  if (kind === 'joycon-left') return 1;
+  if (kind === 'joycon-right') return 2;
+  return 3;
+}
+
+function controllerKindFromCode(code: number): ControllerIdentity['kind'] | null {
+  if (code === 1) return 'joycon-left';
+  if (code === 2) return 'joycon-right';
+  if (code === 3) return 'pro-controller';
+  return null;
 }
