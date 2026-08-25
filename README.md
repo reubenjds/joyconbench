@@ -8,17 +8,15 @@ Browser-based diagnostics and settings tools for original Nintendo Switch Joy-Co
 - Selectable stick, motion, connection, LED, and rumble tests
 - Printable, plain-text, and privacy-safe JSON reports
 - Retail colour presets and body/button colour editing
-- Compact settings backup and restore
-- Quick restart for testing another controller
+- Compact and quick settings backup and restore
 
 ## Prerequisites
 
 - Node.js 24 and pnpm to run locally
 - Desktop Chrome, Edge, or another Chromium browser with WebHID
-- HTTPS or localhost
 - Original Joy-Con over Bluetooth, or a Pro Controller over Bluetooth or USB
 
-Safari, Firefox, iOS, third-party controllers, and Switch 2 controllers are not supported.
+> Note: Safari, Firefox, iOS, third-party controllers, and Switch 2 controllers are not supported.
 
 ## Run locally
 
@@ -26,8 +24,6 @@ Safari, Firefox, iOS, third-party controllers, and Switch 2 controllers are not 
 pnpm install
 pnpm dev
 ```
-
-Add `?debug=1` to the local URL to open the protocol lab.
 
 ## Safety and privacy
 
