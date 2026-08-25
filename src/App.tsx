@@ -561,7 +561,9 @@ function BenchView({
             </div>
             {buttonResult && <StatusLabel status={buttonResult.status}>Saved</StatusLabel>}
           </div>
-          <p>Pressed controls pop blue. Clear the board whenever you want another pass.</p>
+          <p>
+            Pressed controls flash when clicked. Clear the board whenever you want another pass.
+          </p>
           <ul className="button-checklist">
             {requiredButtons.map((button) => (
               <li key={button} className={seenButtons.has(button) ? 'checked' : ''}>
