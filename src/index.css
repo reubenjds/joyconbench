@@ -451,6 +451,17 @@ h3 {
   overflow: hidden;
   background: var(--paper);
 }
+.controller-live-view {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) 230px;
+  align-items: center;
+  gap: 28px;
+  padding: 34px 34px 82px;
+}
+.controller-live-view > .controller-diagram {
+  justify-self: center;
+}
 .controller-diagram {
   width: 100%;
   max-height: 455px;
@@ -459,6 +470,130 @@ h3 {
 }
 .joycon-diagram {
   max-width: 210px;
+}
+.live-gyroscope {
+  width: 100%;
+  border: 1px solid var(--ink);
+  background: var(--white);
+}
+.gyro-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 13px 14px;
+}
+.gyro-heading span,
+.live-gyroscope > p {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.gyro-heading h2 {
+  margin-top: 3px;
+  font-size: 1.15rem;
+}
+.gyro-heading output {
+  color: var(--red);
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.gyro-heading output small {
+  margin-left: 3px;
+  color: var(--muted);
+  font-size: 0.58rem;
+}
+.gyro-vector {
+  width: min(100%, 170px);
+  display: block;
+  margin: 8px auto 2px;
+}
+.gyro-ring,
+.gyro-grid {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.gyro-grid {
+  stroke-dasharray: 2 4;
+}
+.gyro-center {
+  fill: var(--ink);
+}
+.gyro-vector-line {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 2;
+}
+.gyro-vector-point {
+  fill: var(--red);
+  stroke: var(--white);
+  stroke-width: 2;
+}
+.gyro-vector text {
+  fill: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+.gyro-axes {
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+.gyro-axes > div {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  min-height: 35px;
+  border-bottom: 1px solid var(--line);
+  padding: 0 12px;
+}
+.gyro-axes dt {
+  color: var(--red);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.gyro-axes dd {
+  display: grid;
+  grid-template-columns: 1fr 54px;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.gyro-axes output {
+  text-align: right;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+.gyro-axis-track {
+  height: 9px;
+  position: relative;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+.gyro-axis-zero,
+.gyro-axis-value {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.gyro-axis-zero {
+  left: 50%;
+  width: 1px;
+  background: var(--ink);
+}
+.gyro-axis-value {
+  left: var(--gyro-axis-left);
+  width: var(--gyro-axis-width);
+  background: var(--red);
+}
+.live-gyroscope > p {
+  margin: 0;
+  padding: 10px 12px;
+  line-height: 1.4;
 }
 .controller-body {
   fill: var(--controller-body);
@@ -910,6 +1045,70 @@ h3 {
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
 }
+.retail-colors {
+  margin-bottom: 22px;
+}
+.retail-colors-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.retail-colors-heading strong {
+  font-size: 0.82rem;
+}
+.retail-colors-heading span {
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+.retail-color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+.retail-color {
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 8px;
+  background: var(--white);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+.retail-color:hover,
+.retail-color.selected {
+  background: var(--red-soft);
+}
+.retail-color.selected {
+  border-left: 3px solid var(--red);
+}
+.retail-color-swatch {
+  width: 26px;
+  height: 34px;
+  position: relative;
+  border: 1px solid var(--ink);
+  background: var(--retail-body);
+}
+.retail-color-swatch::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  position: absolute;
+  right: 4px;
+  bottom: 5px;
+  border-radius: 50%;
+  background: var(--retail-buttons);
+}
 .backup-tool {
   display: flex;
   flex-direction: column;
@@ -1273,6 +1472,18 @@ footer {
   }
   .diagram-panel {
     min-height: 450px;
+  }
+  .controller-live-view {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 26px 18px 88px;
+  }
+  .controller-live-view > .controller-diagram {
+    max-height: 360px;
+  }
+  .live-gyroscope {
+    max-width: 320px;
+    justify-self: center;
   }
   .button-checklist {
     grid-template-columns: 1fr;

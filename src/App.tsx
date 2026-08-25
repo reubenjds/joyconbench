@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ControllerDiagram } from './components/ControllerDiagram';
 import { ControllerTools } from './components/ControllerTools';
 import { LivePlot } from './components/LivePlot';
+import { LiveGyroscope } from './components/LiveGyroscope';
 import { Button, Modal, Panel, StatusLabel } from './components/ui';
 import {
   analyzeMotion,
@@ -523,7 +524,10 @@ function BenchView({
       </div>
       <div className="button-bench">
         <Panel className="diagram-panel color-blue">
-          <ControllerDiagram kind={identity.kind} sample={latestSample} />
+          <div className="controller-live-view">
+            <ControllerDiagram kind={identity.kind} sample={latestSample} />
+            <LiveGyroscope sample={latestSample} />
+          </div>
           <div className="seen-meter">
             <strong>
               {seenButtons.size}/{requiredButtons.length}
