@@ -5,6 +5,8 @@ import {
   type ControllerKind,
   type ControllerSample,
   type ImuFrame,
+  type StickCalibration,
+  type StickCalibrationSet,
   type Vector2,
   type Vector3,
 } from '../types/controller';
@@ -27,9 +29,24 @@ function readStick(data: DataView, offset: number): Vector2 {
   };
 }
 
-export function normalizeStick(value: Vector2): Vector2 {
-  const normalizeAxis = (axis: number) => Math.max(-1, Math.min(1, (axis - 2048) / 2047));
-  return { x: normalizeAxis(value.x), y: normalizeAxis(value.y) };
+export function normalizeStick(value: Vector2, calibration?: StickCalibration): Vector2 {
+  if (!calibration) {
+    const normalizeAxis = (axis: number) => Math.max(-1, Math.min(1, (axis - 2048) / 2047));
+    return { x: normalizeAxis(value.x), y: normalizeAxis(value.y) };
+  }
+  return {
+    x: normalizeCalibratedAxis(value.x, calibration.x),
+    y: normalizeCalibratedAxis(value.y, calibration.y),
+  };
+}
+
+function normalizeCalibratedAxis(value: number, calibration: StickCalibration['x']): number {
+  const delta = value - calibration.center;
+  const range =
+    delta >= 0
+      ? calibration.maximum - calibration.center
+      : calibration.center - calibration.minimum;
+  return Math.max(-1, Math.min(1, delta / range));
 }
 
 function readVector(data: DataView, offset: number, scale: number): Vector3 {
@@ -64,7 +81,8 @@ export function decodeStandardFullReport(
   data: DataView,
   kind: ControllerKind,
   connection: ConnectionKind,
-  timestamp = performance.now()
+  timestamp = performance.now(),
+  stickCalibration: StickCalibrationSet = {}
 ): ControllerSample {
   if (reportId !== INPUT_REPORT_STANDARD_FULL) {
     throw new Error(`Unsupported input report 0x${reportId.toString(16)}`);
@@ -114,7 +132,10 @@ export function decodeStandardFullReport(
     buttons,
     rawSticks,
     sticks: Object.fromEntries(
-      Object.entries(rawSticks).map(([id, value]) => [id, normalizeStick(value)])
+      Object.entries(rawSticks).map(([id, value]) => [
+        id,
+        normalizeStick(value, stickCalibration[id as keyof StickCalibrationSet]),
+      ])
     ),
     imuFrames: decodeImu(data),
     battery: readBattery(data.getUint8(1)),

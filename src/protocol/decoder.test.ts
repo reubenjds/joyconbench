@@ -74,6 +74,39 @@ describe('Nintendo report decoder', () => {
     expect(normalizeStick({ x: 9999, y: -10 })).toEqual({ x: 1, y: -1 });
   });
 
+  it('normalizes each side of a calibrated center using its measured range', () => {
+    const calibration = {
+      x: { minimum: 1300, center: 2100, maximum: 3100 },
+      y: { minimum: 1200, center: 2000, maximum: 2800 },
+    };
+
+    expect(normalizeStick({ x: 2100, y: 2000 }, calibration)).toEqual({ x: 0, y: 0 });
+    expect(normalizeStick({ x: 2600, y: 1600 }, calibration)).toEqual({ x: 0.5, y: -0.5 });
+    expect(normalizeStick({ x: 5000, y: -100 }, calibration)).toEqual({ x: 1, y: -1 });
+  });
+
+  it('applies supplied calibration while preserving raw stick values', () => {
+    const bytes = new Uint8Array(48);
+    setStick(bytes, 5, 2100, 2000);
+    const calibration = {
+      left: {
+        x: { minimum: 1300, center: 2100, maximum: 3100 },
+        y: { minimum: 1200, center: 2000, maximum: 2800 },
+      },
+    };
+    const sample = decodeStandardFullReport(
+      0x30,
+      new DataView(bytes.buffer),
+      'joycon-left',
+      'bluetooth',
+      100,
+      calibration
+    );
+
+    expect(sample.rawSticks.left).toEqual({ x: 2100, y: 2000 });
+    expect(sample.sticks.left).toEqual({ x: 0, y: 0 });
+  });
+
   it('allows scoped SPI settings access but blocks erase and firmware commands', () => {
     expect(buildSubcommandPacket(0, 0x10, [0x50, 0x60, 0, 0, 6])[9]).toBe(0x10);
     expect(buildSubcommandPacket(0, 0x11, [0x50, 0x60, 0, 0, 1, 0])[9]).toBe(0x11);

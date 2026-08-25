@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { ControllerIdentity } from '../types/controller';
 import {
+  LEGACY_SETTINGS_REGIONS,
+  SETTINGS_BACKUP_BYTES,
   SETTINGS_REGIONS,
   buildSettingsBackup,
   bytesToHex,
@@ -26,6 +28,19 @@ describe('controller settings safety', () => {
     expect(colorsFromBytes(bytes)).toEqual({ body: '#00aaff', buttons: '#221100' });
   });
 
+  it('round-trips Pro Controller body, button, and independent grip colours', () => {
+    const colors = {
+      body: '#323232',
+      buttons: '#ffffff',
+      leftGrip: '#ff3278',
+      rightGrip: '#1edc00',
+    };
+    const bytes = colorsToBytes(colors);
+
+    expect(bytesToHex(bytes)).toBe('323232ffffffff32781edc00');
+    expect(colorsFromBytes(bytes)).toEqual(colors);
+  });
+
   it('accepts an intact scoped backup for the matching controller', async () => {
     const segments = SETTINGS_REGIONS.map((region, index) => ({
       name: region.name,
@@ -34,6 +49,22 @@ describe('controller settings safety', () => {
     }));
     const backup = await buildSettingsBackup(identity, segments);
     await expect(validateSettingsBackup(backup, identity)).resolves.toEqual(backup);
+    expect(SETTINGS_BACKUP_BYTES).toBe(145);
+    expect(backup.segments.map((segment) => segment.name)).toContain('user-stick-calibration');
+    expect(backup.segments.map((segment) => segment.name)).toContain('user-motion-calibration');
+  });
+
+  it('continues to decode and validate legacy 97-byte settings backups', async () => {
+    const segments = LEGACY_SETTINGS_REGIONS.map((region, index) => ({
+      name: region.name,
+      address: region.address,
+      dataHex: index.toString(16).padStart(2, '0').repeat(region.length),
+    }));
+    const backup = await buildSettingsBackup(identity, segments);
+    const encoded = await encodeSettingsBackup(backup);
+
+    expect(segments.reduce((total, segment) => total + segment.dataHex.length / 2, 0)).toBe(97);
+    await expect(decodeSettingsBackup(encoded, identity)).resolves.toEqual(backup);
   });
 
   it('round-trips the scoped backup through the compact binary format', async () => {

@@ -1,3 +1,9 @@
+import { resolveStickCalibration } from '../protocol/calibration';
+import {
+  FACTORY_LEFT_STICK_REGION,
+  FACTORY_RIGHT_STICK_REGION,
+  USER_STICK_REGION,
+} from '../protocol/calibration';
 import { decodeStandardFullReport } from '../protocol/decoder';
 import {
   INPUT_REPORT_STANDARD_FULL,
@@ -13,6 +19,7 @@ import {
   type ControllerAdapter,
   type ControllerIdentity,
   type SampleListener,
+  type StickCalibrationSet,
 } from '../types/controller';
 import type {
   ControllerColors,
@@ -24,6 +31,7 @@ import { MAX_SPI_TRANSFER_BYTES } from '../protocol/nintendo';
 import {
   COLOR_ADDRESS,
   COLOR_LENGTH,
+  PRO_COLOR_LENGTH,
   COLOR_USE_ADDRESS,
   SETTINGS_REGIONS,
   buildSettingsBackup,
@@ -36,6 +44,7 @@ import {
 
 export class NintendoControllerAdapter implements ControllerAdapter {
   private identity: ControllerIdentity | null = null;
+  private stickCalibration: StickCalibrationSet = {};
   private readonly sampleListeners = new Set<SampleListener>();
   private unsubscribeTransport: (() => void) | null = null;
 
@@ -59,7 +68,9 @@ export class NintendoControllerAdapter implements ControllerAdapter {
           event.reportId,
           event.data,
           this.identity.kind,
-          this.identity.connection
+          this.identity.connection,
+          performance.now(),
+          this.stickCalibration
         );
         for (const listener of this.sampleListeners) listener(sample);
       } catch {
@@ -74,6 +85,7 @@ export class NintendoControllerAdapter implements ControllerAdapter {
     this.unsubscribeTransport = null;
     await this.transport.close();
     this.identity = null;
+    this.stickCalibration = {};
   }
 
   async initialize() {
@@ -84,6 +96,12 @@ export class NintendoControllerAdapter implements ControllerAdapter {
       await this.enableImu();
       await this.transport.sendSubcommand(SUBCOMMAND_ENABLE_VIBRATION, [0x01]);
       await firstSample.promise;
+      try {
+        await this.loadStickCalibration();
+      } catch {
+        // Valid input remains available with nominal normalization if calibration cannot be read.
+        this.stickCalibration = {};
+      }
     } catch (error) {
       firstSample.cancel();
       throw error;
@@ -115,14 +133,23 @@ export class NintendoControllerAdapter implements ControllerAdapter {
   }
 
   async readColors() {
-    return colorsFromBytes(await this.readRegion(COLOR_ADDRESS, COLOR_LENGTH));
+    const length = this.identity?.kind === 'pro-controller' ? PRO_COLOR_LENGTH : COLOR_LENGTH;
+    return colorsFromBytes(await this.readRegion(COLOR_ADDRESS, length));
   }
 
   async writeColors(colors: ControllerColors) {
     const data = colorsToBytes(colors);
+    const expectedLength =
+      this.identity?.kind === 'pro-controller' ? PRO_COLOR_LENGTH : COLOR_LENGTH;
+    if (data.length !== expectedLength) {
+      throw new Error('The colour data does not match the connected controller type.');
+    }
     await this.writeRegion(COLOR_ADDRESS, data);
-    await this.writeRegion(COLOR_USE_ADDRESS, new Uint8Array([0x01]));
-    const verified = await this.readRegion(COLOR_ADDRESS, COLOR_LENGTH);
+    await this.writeRegion(
+      COLOR_USE_ADDRESS,
+      new Uint8Array([this.identity?.kind === 'pro-controller' ? 0x02 : 0x01])
+    );
+    const verified = await this.readRegion(COLOR_ADDRESS, expectedLength);
     if (bytesToHex(verified) !== bytesToHex(data)) {
       throw new Error('Colour verification failed; reconnect before trying again.');
     }
@@ -149,25 +176,25 @@ export class NintendoControllerAdapter implements ControllerAdapter {
   async restoreSettings(backup: ControllerSettingsBackup, onProgress?: SettingsProgress) {
     const identity = await this.identify();
     const validated = await validateSettingsBackup(backup, identity);
-    const transfers = SETTINGS_REGIONS.reduce(
-      (sum, region) => sum + Math.ceil(region.length / MAX_SPI_TRANSFER_BYTES),
+    const transfers = validated.segments.reduce(
+      (sum, segment) =>
+        sum + Math.ceil(hexToBytes(segment.dataHex).length / MAX_SPI_TRANSFER_BYTES),
       0
     );
     let completed = 0;
     const total = transfers * 2;
-    for (const region of SETTINGS_REGIONS) {
-      const segment = validated.segments.find((candidate) => candidate.name === region.name)!;
+    for (const segment of validated.segments) {
       const data = hexToBytes(segment.dataHex);
-      await this.writeRegion(region.address, data, () => {
+      await this.writeRegion(segment.address, data, () => {
         completed += 1;
-        onProgress?.(completed, total, `Restoring ${region.name}`);
+        onProgress?.(completed, total, `Restoring ${segment.name}`);
       });
-      const verified = await this.readRegion(region.address, region.length, () => {
+      const verified = await this.readRegion(segment.address, data.length, () => {
         completed += 1;
-        onProgress?.(completed, total, `Verifying ${region.name}`);
+        onProgress?.(completed, total, `Verifying ${segment.name}`);
       });
       if (bytesToHex(verified) !== segment.dataHex.toLowerCase()) {
-        throw new Error(`Verification failed for ${region.name}; stop and reconnect.`);
+        throw new Error(`Verification failed for ${segment.name}; stop and reconnect.`);
       }
     }
   }
@@ -193,6 +220,21 @@ export class NintendoControllerAdapter implements ControllerAdapter {
       await this.transport.writeSpi(address + offset, chunk);
       onChunk?.();
     }
+  }
+
+  private async loadStickCalibration() {
+    if (!this.identity) throw new Error('No controller is connected.');
+    const [factoryLeft, factoryRight, user] = await Promise.all([
+      this.readRegion(FACTORY_LEFT_STICK_REGION.address, FACTORY_LEFT_STICK_REGION.length),
+      this.readRegion(FACTORY_RIGHT_STICK_REGION.address, FACTORY_RIGHT_STICK_REGION.length),
+      this.readRegion(USER_STICK_REGION.address, USER_STICK_REGION.length),
+    ]);
+    this.stickCalibration = resolveStickCalibration(
+      this.identity.kind,
+      factoryLeft,
+      factoryRight,
+      user
+    );
   }
 
   private createSampleWaiter(timeoutMs: number) {

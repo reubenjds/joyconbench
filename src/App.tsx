@@ -16,6 +16,7 @@ import {
   createConfirmationResult,
 } from './diagnostics/calculations';
 import { useController } from './hooks/useController';
+import { useDemoController } from './hooks/useDemoController';
 import { buildReport, downloadReport, reportSummary } from './report/report';
 import type {
   ControllerButton,
@@ -133,7 +134,10 @@ const BUTTON_LABELS: Record<ControllerButton, string> = {
 };
 
 export default function App() {
-  const controller = useController();
+  const hardwareController = useController();
+  const demoController = useDemoController();
+  const previewActive = demoController.identity !== null;
+  const controller = previewActive ? demoController : hardwareController;
   const [view, setView] = useState<View>('connect');
   const [selectedTest, setSelectedTest] = useState<CaptureTestId | null>(null);
   const [results, setResults] = useState<DiagnosticResult[]>([]);
@@ -173,10 +177,15 @@ export default function App() {
     try {
       await controller.connect();
       setPairingOpen(false);
-      setView('bench');
+      setView('tools');
     } catch {
       // The hook exposes a safe user-facing error.
     }
+  };
+
+  const openPreview = async () => {
+    await demoController.connect();
+    setView('tools');
   };
 
   const chooseTest = (test: TestDefinition) => {
@@ -247,7 +256,7 @@ export default function App() {
         <button
           className="brand"
           type="button"
-          onClick={() => setView(identity ? 'bench' : 'connect')}
+          onClick={() => setView(identity ? 'tools' : 'connect')}
         >
           <span className="brand-icon" aria-hidden="true">
             <i />
@@ -257,26 +266,38 @@ export default function App() {
             JoyCon<span>Bench</span>
           </span>
         </button>
-        {identity ? (
-          <nav className="main-nav" aria-label="Workbench">
-            <button className={view === 'bench' ? 'active' : ''} onClick={() => setView('bench')}>
-              Tests
-            </button>
-            <button className={view === 'tools' ? 'active' : ''} onClick={() => setView('tools')}>
-              Controller tools
+        {identity && (
+          <nav className="main-nav" aria-label="Controller workspaces">
+            <button
+              className={`workspace-tab colour-tab ${view === 'tools' ? 'active' : ''}`.trim()}
+              onClick={() => setView('tools')}
+              aria-current={view === 'tools' ? 'page' : undefined}
+            >
+              Colours
             </button>
             <button
-              className={view === 'results' || view === 'report' ? 'active' : ''}
+              className={`workspace-tab test-tab ${
+                view === 'bench' || view === 'test' || view === 'outputs' ? 'active' : ''
+              }`.trim()}
+              onClick={() => setView('bench')}
+              aria-current={
+                view === 'bench' || view === 'test' || view === 'outputs' ? 'page' : undefined
+              }
+            >
+              Tests
+            </button>
+            <button
+              className={`result-tab ${
+                view === 'results' || view === 'report' ? 'active' : ''
+              }`.trim()}
               onClick={() => setView('results')}
+              aria-current={view === 'results' || view === 'report' ? 'page' : undefined}
             >
               Results <span>{results.length}</span>
             </button>
           </nav>
-        ) : (
-          <p>Private controller diagnostics. No install. No uploads.</p>
         )}
         <div className="header-actions">
-          <span className="local-note">● Local only</span>
           <Button className="button-text" onClick={() => setPrivacyOpen(true)}>
             Privacy
           </Button>
@@ -286,10 +307,11 @@ export default function App() {
       <main className="workspace">
         {view === 'connect' && (
           <ConnectView
-            supported={controller.supported}
-            status={controller.status}
-            error={controller.error}
+            supported={hardwareController.supported}
+            status={hardwareController.status}
+            error={hardwareController.error}
             onOpenPairing={() => setPairingOpen(true)}
+            onPreview={import.meta.env.DEV ? openPreview : undefined}
           />
         )}
 
@@ -298,13 +320,16 @@ export default function App() {
             <span className="device-dot" aria-hidden="true" />
             <strong>{identity.displayName}</strong>
             <span>
-              {controller.latestSample
-                ? formatBattery(controller.latestSample.battery)
-                : 'Reading battery'}{' '}
-              · {identity.connection}
+              {previewActive
+                ? 'Local preview data'
+                : `${
+                    controller.latestSample
+                      ? formatBattery(controller.latestSample.battery)
+                      : 'Reading battery'
+                  } · ${identity.connection}`}
             </span>
             <Button className="button-text" onClick={startAgain}>
-              Test another controller
+              Switch controller
             </Button>
           </div>
         )}
@@ -348,9 +373,13 @@ export default function App() {
 
         {identity && view === 'tools' && (
           <PageFrame
-            eyebrow="Persistent tools"
-            title="Controller settings"
-            lede="Fast, narrowly scoped tools for documented controller settings, not a full flash editor."
+            eyebrow="Colours & backup"
+            title="Controller colours"
+            lede={
+              identity.kind === 'pro-controller'
+                ? 'Read or change the body, buttons, and grips.'
+                : 'Read or change the body and buttons.'
+            }
             className="tools-page-heading"
           >
             <ControllerTools
@@ -441,8 +470,8 @@ export default function App() {
             calibration values.
           </p>
           <p>
-            Persistent tools touch only documented colour, calibration, and parameter regions after
-            explicit confirmation. Firmware, pairing, erase, patch, and unknown regions remain
+            Colour and backup tools touch only documented colour, calibration, and parameter regions
+            after explicit confirmation. Firmware, pairing, erase, patch, and unknown regions remain
             blocked.
           </p>
         </div>
@@ -456,29 +485,43 @@ function ConnectView({
   status,
   error,
   onOpenPairing,
+  onPreview,
 }: {
   supported: boolean;
   status: string;
   error: string | null;
   onOpenPairing: () => void;
+  onPreview?: () => void;
 }) {
   return (
     <div className="connect-hero">
       <section className="hero-blue">
-        <h1 aria-label="See exactly what your controller is doing.">
-          See exactly what your
+        <div className="browser-note">
+          <strong>Runs in your browser</strong>
+          <span>Nothing uploaded</span>
+        </div>
+        <h1 aria-label="Test your controller. Set its colours.">
+          Test your controller.
           <br />
-          controller is doing.
+          Set its colours.
         </h1>
         <p>
-          Connect a Joy-Con or Pro Controller to view every input live. Check for drift, test
-          individual features, and save a private diagnostic report.
+          Connect a Joy-Con or Pro Controller to inspect its inputs or change its body and button
+          colours. Everything runs locally in your browser.
         </p>
-        {supported ? (
-          <Button onClick={onOpenPairing} disabled={status === 'connecting'}>
-            Connect controller
-          </Button>
-        ) : (
+        <div className="connect-actions">
+          {supported && (
+            <Button onClick={onOpenPairing} disabled={status === 'connecting'}>
+              Connect controller
+            </Button>
+          )}
+          {onPreview && (
+            <Button className="button-secondary" onClick={onPreview}>
+              Preview without controller
+            </Button>
+          )}
+        </div>
+        {!supported && (
           <div className="support-warning" role="alert">
             <strong>This browser cannot access WebHID.</strong>
             <p>
@@ -498,14 +541,10 @@ function ConnectView({
           <ControllerDiagram kind="joycon-left" />
           <ControllerDiagram kind="joycon-right" />
         </div>
-        <div className="speech-bubble">
-          <strong>Runs in your browser</strong>
-          <span>Nothing uploaded</span>
-        </div>
         <ol className="hero-benefits">
-          <li>The live button test opens immediately</li>
-          <li>Run only the diagnostics you need</li>
-          <li>Switch controllers without reloading</li>
+          <li>Test buttons, sticks, motion, and connection quality</li>
+          <li>Read, preview, and write body and button colours</li>
+          <li>Back up and restore documented controller settings</li>
         </ol>
       </section>
     </div>

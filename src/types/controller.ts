@@ -13,6 +13,19 @@ export type StickId = 'left' | 'right';
 export type Vector2 = { x: number; y: number };
 export type Vector3 = { x: number; y: number; z: number };
 
+export interface StickAxisCalibration {
+  minimum: number;
+  center: number;
+  maximum: number;
+}
+
+export interface StickCalibration {
+  x: StickAxisCalibration;
+  y: StickAxisCalibration;
+}
+
+export type StickCalibrationSet = Partial<Record<StickId, StickCalibration>>;
+
 export type ControllerButton =
   | 'a'
   | 'b'
@@ -67,6 +80,8 @@ export interface ControllerIdentity {
 export interface ControllerColors {
   body: string;
   buttons: string;
+  leftGrip?: string;
+  rightGrip?: string;
 }
 
 export interface ControllerSettingsSegment {

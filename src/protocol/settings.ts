@@ -4,22 +4,40 @@ import type {
   ControllerSettingsBackup,
   ControllerSettingsSegment,
 } from '../types/controller';
+import {
+  FACTORY_LEFT_STICK_REGION,
+  FACTORY_RIGHT_STICK_REGION,
+  USER_MOTION_REGION,
+  USER_STICK_REGION,
+} from './calibration';
 
 export const COLOR_USE_ADDRESS = 0x601b;
 export const COLOR_ADDRESS = 0x6050;
 export const COLOR_LENGTH = 6;
+export const PRO_COLOR_LENGTH = 12;
 const BINARY_BACKUP_MAGIC = new TextEncoder().encode('JCBSET01');
 const BINARY_BACKUP_HEADER_LENGTH = 20;
 const BINARY_BACKUP_CHECKSUM_LENGTH = 32;
 
-export const SETTINGS_REGIONS = [
+export const LEGACY_SETTINGS_REGIONS = [
   { name: 'color-use', address: 0x601b, length: 1 },
   { name: 'factory-motion-calibration', address: 0x6020, length: 24 },
-  { name: 'factory-left-stick-calibration', address: 0x603d, length: 9 },
-  { name: 'factory-right-stick-calibration', address: 0x6046, length: 9 },
+  FACTORY_LEFT_STICK_REGION,
+  FACTORY_RIGHT_STICK_REGION,
   { name: 'appearance', address: 0x6050, length: 12 },
   { name: 'sensor-stick-parameters', address: 0x6080, length: 42 },
 ] as const;
+
+export const SETTINGS_REGIONS = [
+  ...LEGACY_SETTINGS_REGIONS,
+  USER_STICK_REGION,
+  USER_MOTION_REGION,
+] as const;
+
+export const SETTINGS_BACKUP_BYTES = SETTINGS_REGIONS.reduce(
+  (total, region) => total + region.length,
+  0
+);
 
 export function isDocumentedSettingsRange(address: number, length: number) {
   return SETTINGS_REGIONS.some(
@@ -40,16 +58,32 @@ export function hexToBytes(hex: string) {
 export function colorsFromBytes(bytes: Uint8Array): ControllerColors {
   if (bytes.length < COLOR_LENGTH)
     throw new Error('The controller returned incomplete colour data.');
-  return {
+  const colors: ControllerColors = {
     body: `#${bytesToHex(bytes.slice(0, 3))}`,
     buttons: `#${bytesToHex(bytes.slice(3, 6))}`,
   };
+  if (bytes.length >= PRO_COLOR_LENGTH) {
+    colors.leftGrip = `#${bytesToHex(bytes.slice(6, 9))}`;
+    colors.rightGrip = `#${bytesToHex(bytes.slice(9, 12))}`;
+  }
+  return colors;
 }
 
 export function colorsToBytes(colors: ControllerColors) {
   const body = colorToBytes(colors.body);
   const buttons = colorToBytes(colors.buttons);
-  return new Uint8Array([...body, ...buttons]);
+  if (colors.leftGrip === undefined && colors.rightGrip === undefined) {
+    return new Uint8Array([...body, ...buttons]);
+  }
+  if (colors.leftGrip === undefined || colors.rightGrip === undefined) {
+    throw new Error('Pro Controller colours require both grip values.');
+  }
+  return new Uint8Array([
+    ...body,
+    ...buttons,
+    ...colorToBytes(colors.leftGrip),
+    ...colorToBytes(colors.rightGrip),
+  ]);
 }
 
 export async function buildSettingsBackup(
@@ -81,10 +115,12 @@ export async function validateSettingsBackup(
   if (!backup.controller || !backup.segments || !backup.checksum || !backup.createdAt) {
     throw new Error('This settings backup is incomplete.');
   }
-  if (!Array.isArray(backup.segments) || backup.segments.length !== SETTINGS_REGIONS.length) {
+  if (!Array.isArray(backup.segments)) {
     throw new Error('This backup does not contain the expected settings regions.');
   }
-  for (const region of SETTINGS_REGIONS) {
+  const regions = regionsForSegments(backup.segments);
+  if (!regions) throw new Error('This backup does not contain the expected settings regions.');
+  for (const region of regions) {
     const matches = backup.segments.filter(
       (segment) => segment.name === region.name && segment.address === region.address
     );
@@ -168,13 +204,14 @@ export async function decodeSettingsBackup(
   const timestamp = view.getFloat64(11, true);
   const regionCount = view.getUint8(19);
   if (!kind || !Number.isFinite(timestamp)) throw new Error('The binary backup header is invalid.');
-  if (regionCount !== SETTINGS_REGIONS.length) {
+  const regions = regionsForCount(regionCount);
+  if (!regions) {
     throw new Error('This binary backup does not contain the expected settings regions.');
   }
 
   let cursor = BINARY_BACKUP_HEADER_LENGTH;
   const segments: ControllerSettingsSegment[] = [];
-  for (const region of SETTINGS_REGIONS) {
+  for (const region of regions) {
     if (cursor + 6 > bytes.length - BINARY_BACKUP_CHECKSUM_LENGTH) {
       throw new Error('The binary backup is incomplete.');
     }
@@ -244,4 +281,22 @@ function controllerKindFromCode(code: number): ControllerIdentity['kind'] | null
   if (code === 2) return 'joycon-right';
   if (code === 3) return 'pro-controller';
   return null;
+}
+
+function regionsForCount(count: number) {
+  if (count === SETTINGS_REGIONS.length) return SETTINGS_REGIONS;
+  if (count === LEGACY_SETTINGS_REGIONS.length) return LEGACY_SETTINGS_REGIONS;
+  return null;
+}
+
+function regionsForSegments(segments: ControllerSettingsSegment[]) {
+  const regions = regionsForCount(segments.length);
+  if (!regions) return null;
+  const valid = regions.every(
+    (region) =>
+      segments.filter(
+        (segment) => segment.name === region.name && segment.address === region.address
+      ).length === 1
+  );
+  return valid ? regions : null;
 }

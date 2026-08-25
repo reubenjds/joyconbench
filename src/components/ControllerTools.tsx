@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react';
-import type { NintendoControllerAdapter } from '../adapters/NintendoControllerAdapter';
 import {
+  SETTINGS_BACKUP_BYTES,
   decodeSettingsBackup,
   encodeSettingsBackup,
   isBinarySettingsBackup,
@@ -8,6 +8,7 @@ import {
 } from '../protocol/settings';
 import type {
   ControllerColors,
+  ControllerAdapter,
   ControllerIdentity,
   ControllerSettingsBackup,
 } from '../types/controller';
@@ -34,6 +35,63 @@ const RETAIL_COLORS: ReadonlyArray<{ name: string; colors: ControllerColors }> =
   { name: 'Pastel green', colors: { body: '#bcffc8', buttons: '#2d322d' } },
 ];
 
+const PRO_RETAIL_COLORS: ReadonlyArray<{ name: string; colors: ControllerColors }> = [
+  {
+    name: 'Standard black',
+    colors: {
+      body: '#323232',
+      buttons: '#ffffff',
+      leftGrip: '#464646',
+      rightGrip: '#464646',
+    },
+  },
+  {
+    name: 'Splatoon 2',
+    colors: {
+      body: '#313232',
+      buttons: '#ffffff',
+      leftGrip: '#1edc00',
+      rightGrip: '#ff3278',
+    },
+  },
+  {
+    name: 'Xenoblade 2',
+    colors: {
+      body: '#323132',
+      buttons: '#ffffff',
+      leftGrip: '#e10f00',
+      rightGrip: '#e10f00',
+    },
+  },
+  {
+    name: 'Smash Ultimate',
+    colors: {
+      body: '#323232',
+      buttons: '#ffffff',
+      leftGrip: '#e6e6e6',
+      rightGrip: '#e6e6e6',
+    },
+  },
+  {
+    name: 'Splatoon 3',
+    colors: {
+      body: '#323232',
+      buttons: '#ffffff',
+      leftGrip: '#4655f5',
+      rightGrip: '#e6ff00',
+    },
+  },
+  {
+    name: 'Zelda TOTK',
+    colors: {
+      body: '#323232',
+      buttons: '#ffffff',
+      leftGrip: '#17181d',
+      rightGrip: '#e6e6e6',
+    },
+  },
+];
+
 export function ControllerTools({
   adapter,
   identity,
@@ -41,12 +99,14 @@ export function ControllerTools({
   initialColors,
   onColorsChange,
 }: {
-  adapter: NintendoControllerAdapter;
+  adapter: ControllerAdapter;
   identity: ControllerIdentity;
   batteryCritical: boolean;
   initialColors: ControllerColors | null;
   onColorsChange: (colors: ControllerColors) => void;
 }) {
+  const isProController = identity.kind === 'pro-controller';
+  const presets = isProController ? PRO_RETAIL_COLORS : RETAIL_COLORS;
   const [colors, setColors] = useState(() => initialColors ?? defaultColors(identity));
   const [pendingBackup, setPendingBackup] = useState<ControllerSettingsBackup | null>(null);
   const [pendingFile, setPendingFile] = useState('');
@@ -191,15 +251,23 @@ export function ControllerTools({
           <div className="panel-heading color-tool-heading">
             <div>
               <span className="sticker">Appearance</span>
-              <h2>Controller colours</h2>
+              <h2>Choose an appearance</h2>
             </div>
-            <p>Preview a retail pair or choose custom body and button values.</p>
+            <p>
+              {isProController
+                ? 'Set body, buttons, and each grip independently.'
+                : 'Preview a retail pair or choose custom body and button values.'}
+            </p>
           </div>
-          <div className="appearance-editor">
+          <div
+            className={
+              isProController ? 'appearance-editor pro-appearance-editor' : 'appearance-editor'
+            }
+          >
             <div className="tool-preview">
               <ControllerDiagram kind={identity.kind} colors={colors} />
             </div>
-            <div className="color-fields">
+            <div className={isProController ? 'color-fields pro-color-fields' : 'color-fields'}>
               <label>
                 <span>Body</span>
                 <input
@@ -218,25 +286,47 @@ export function ControllerTools({
                 />
                 <code>{colors.buttons.toUpperCase()}</code>
               </label>
+              {isProController && colors.leftGrip && colors.rightGrip && (
+                <>
+                  <label>
+                    <span>Left grip</span>
+                    <input
+                      type="color"
+                      value={colors.leftGrip}
+                      onChange={(event) => setColors({ ...colors, leftGrip: event.target.value })}
+                    />
+                    <code>{colors.leftGrip.toUpperCase()}</code>
+                  </label>
+                  <label>
+                    <span>Right grip</span>
+                    <input
+                      type="color"
+                      value={colors.rightGrip}
+                      onChange={(event) => setColors({ ...colors, rightGrip: event.target.value })}
+                    />
+                    <code>{colors.rightGrip.toUpperCase()}</code>
+                  </label>
+                </>
+              )}
             </div>
           </div>
           <div className="retail-colors">
             <div className="retail-colors-heading">
-              <strong>Retail colours</strong>
-              <span>Choose a preset, then write</span>
+              <strong>{isProController ? 'Retail editions' : 'Retail colours'}</strong>
+              <span>
+                {isProController ? 'Colours only, artwork excluded' : 'Choose a preset, then write'}
+              </span>
             </div>
             <div className="retail-color-grid">
-              {RETAIL_COLORS.map((preset) => {
-                const selected =
-                  colors.body.toLowerCase() === preset.colors.body &&
-                  colors.buttons.toLowerCase() === preset.colors.buttons;
+              {presets.map((preset) => {
+                const selected = colorsMatch(colors, preset.colors);
                 return (
                   <button
                     key={preset.name}
                     type="button"
                     className={selected ? 'retail-color selected' : 'retail-color'}
                     aria-pressed={selected}
-                    onClick={() => setColors(preset.colors)}
+                    onClick={() => setColors({ ...colors, ...preset.colors })}
                   >
                     <span
                       className="retail-color-swatch"
@@ -244,6 +334,8 @@ export function ControllerTools({
                         {
                           '--retail-body': preset.colors.body,
                           '--retail-buttons': preset.colors.buttons,
+                          '--retail-left-grip': preset.colors.leftGrip ?? preset.colors.body,
+                          '--retail-right-grip': preset.colors.rightGrip ?? preset.colors.body,
                         } as CSSProperties
                       }
                       aria-hidden="true"
@@ -266,31 +358,31 @@ export function ControllerTools({
 
         <Panel className="backup-tool color-red">
           <span className="sticker">Settings backup</span>
-          <h2>Back up before making changes</h2>
+          <h2>Back up your settings</h2>
           <p>
-            Saves 97 bytes from documented colour, calibration, and sensor-parameter regions. It
-            excludes serial, pairing, firmware, patch, and unidentified flash data.
+            Save colours and factory or user calibration. Serial, pairing, and firmware data are
+            excluded.
           </p>
           <dl className="backup-facts">
             <div>
               <dt>Backup scope</dt>
-              <dd>97 bytes</dd>
+              <dd>{SETTINGS_BACKUP_BYTES} bytes</dd>
             </div>
             <div>
               <dt>File format</dt>
-              <dd>Checksummed .bin</dd>
+              <dd>Verified .bin</dd>
             </div>
           </dl>
           <div className="backup-stack">
             <Button onClick={createBackup} disabled={busy}>
-              Download settings backup
+              Download backup
             </Button>
             <Button
               className="button-secondary"
               onClick={() => fileInput.current?.click()}
               disabled={busy || batteryCritical}
             >
-              Choose backup to restore
+              Restore backup
             </Button>
             <input
               ref={fileInput}
@@ -301,8 +393,7 @@ export function ControllerTools({
             />
           </div>
           <p className="tool-fine-print">
-            JoyConBench .bin files are compact settings backups, not the old toolkit’s 512 KB raw
-            SPI images. Every chunk is checked before writing and verified afterward.
+            Each section is checked before writing and verified afterward.
           </p>
         </Panel>
       </div>
@@ -403,7 +494,13 @@ function downloadBinary(value: Uint8Array, filename: string) {
 function defaultColors(identity: ControllerIdentity): ControllerColors {
   if (identity.kind === 'joycon-left') return RETAIL_COLORS[2].colors;
   if (identity.kind === 'joycon-right') return RETAIL_COLORS[1].colors;
-  return RETAIL_COLORS[0].colors;
+  return PRO_RETAIL_COLORS[0].colors;
+}
+
+function colorsMatch(colors: ControllerColors, preset: ControllerColors) {
+  return (Object.keys(preset) as Array<keyof ControllerColors>).every(
+    (key) => colors[key]?.toLowerCase() === preset[key]?.toLowerCase()
+  );
 }
 
 function dateStamp() {

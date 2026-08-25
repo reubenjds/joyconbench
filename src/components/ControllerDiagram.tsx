@@ -38,18 +38,48 @@ function Stick({
   x = 0,
   y = 0,
   pressed,
+  scale = 1,
 }: {
   cx: number;
   cy: number;
   x?: number;
   y?: number;
   pressed?: boolean;
+  scale?: number;
 }) {
   return (
-    <g className={pressed ? 'diagram-stick active' : 'diagram-stick'}>
+    <g
+      className={pressed ? 'diagram-stick active' : 'diagram-stick'}
+      transform={`translate(${cx} ${cy}) scale(${scale}) translate(${-cx} ${-cy})`}
+    >
       <circle className="stick-well" cx={cx} cy={cy} r="39" />
       <circle className="stick-neck" cx={cx + x * 10} cy={cy - y * 10} r="29" />
       <circle className="stick-cap" cx={cx + x * 10} cy={cy - y * 10} r="22" />
+    </g>
+  );
+}
+
+function ProDPad({ buttons }: { buttons?: ButtonState }) {
+  return (
+    <g className="diagram-dpad">
+      <path d="M178 204h22v22h23v23h-23v23h-22v-23h-23v-23h23Z" />
+      <path
+        className={buttons?.up ? 'diagram-dpad-segment active' : 'diagram-dpad-segment'}
+        d="M178 204h22v38h-22Z"
+      />
+      <path
+        className={buttons?.down ? 'diagram-dpad-segment active' : 'diagram-dpad-segment'}
+        d="M178 234h22v38h-22Z"
+      />
+      <path
+        className={buttons?.left ? 'diagram-dpad-segment active' : 'diagram-dpad-segment'}
+        d="M155 226h38v23h-38Z"
+      />
+      <path
+        className={buttons?.right ? 'diagram-dpad-segment active' : 'diagram-dpad-segment'}
+        d="M185 226h38v23h-38Z"
+      />
+      <circle cx="189" cy="237.5" r="5" />
     </g>
   );
 }
@@ -232,47 +262,95 @@ export function ControllerDiagram({
   const proStyle = {
     '--controller-body': colors?.body ?? '#2e3038',
     '--controller-buttons': colors?.buttons ?? '#17181d',
+    '--controller-left-grip': colors?.leftGrip ?? colors?.body ?? '#464646',
+    '--controller-right-grip': colors?.rightGrip ?? colors?.body ?? '#464646',
   } as CSSProperties;
   return (
     <svg
       className="controller-diagram pro-diagram"
-      viewBox="0 0 680 430"
+      viewBox="0 0 525 446"
       role="img"
       aria-label="Pro Controller live input diagram"
       style={proStyle}
     >
-      <path
-        className="pro-trigger"
-        d="M119 78c42-40 91-48 151-28h140c60-20 109-12 151 28l-43 51H162Z"
-      />
-      <path
-        className="controller-body"
-        d="M155 67c-58 11-103 57-121 126-18 72-8 172 38 192 35 15 68-27 101-93h334c33 66 66 108 101 93 46-20 56-120 38-192-18-69-63-115-121-126-52-10-107 7-154 20h-62c-47-13-102-30-154-20Z"
-      />
-      <g className="pro-center-panel">
-        <path d="M272 88h136l31 91H241Z" />
-        <circle cx="340" cy="124" r="8" />
+      <g className={buttons?.zl ? 'pro-trigger active' : 'pro-trigger'} data-button="zl">
+        <path d="M101 62c5-24 21-38 47-38h29c22 0 36 12 42 36l3 12H103Z" />
+        <text x="158" y="47" textAnchor="middle">
+          ZL
+        </text>
       </g>
-      <Stick cx={206} cy={176} x={leftStick?.x} y={leftStick?.y} pressed={buttons?.leftStick} />
-      <Stick cx={387} cy={278} x={rightStick?.x} y={rightStick?.y} pressed={buttons?.rightStick} />
-      <Control cx={530} cy={112} label="X" pressed={buttons?.x} size={17} />
-      <Control cx={530} cy={202} label="B" pressed={buttons?.b} size={17} />
-      <Control cx={485} cy={157} label="Y" pressed={buttons?.y} size={17} />
-      <Control cx={575} cy={157} label="A" pressed={buttons?.a} size={17} />
-      <Control cx={130} cy={231} label="▲" pressed={buttons?.up} size={16} />
-      <Control cx={130} cy={321} label="▼" pressed={buttons?.down} size={16} />
-      <Control cx={85} cy={276} label="◀" pressed={buttons?.left} size={16} />
-      <Control cx={175} cy={276} label="▶" pressed={buttons?.right} size={16} />
-      <Control cx={292} cy={184} label="−" pressed={buttons?.minus} size={13} />
-      <Control cx={388} cy={184} label="+" pressed={buttons?.plus} size={13} />
+      <g className={buttons?.zr ? 'pro-trigger active' : 'pro-trigger'} data-button="zr">
+        <path d="M303 72l3-12c6-24 20-36 42-36h29c26 0 42 14 47 38l-2 10Z" />
+        <text x="367" y="47" textAnchor="middle">
+          ZR
+        </text>
+      </g>
+      <g className={buttons?.l ? 'pro-shoulder active' : 'pro-shoulder'} data-button="l">
+        <path d="M121 73c4-15 15-23 30-23h25c16 0 26 8 31 23Z" />
+        <text x="164" y="67" textAnchor="middle">
+          L
+        </text>
+      </g>
+      <g className={buttons?.r ? 'pro-shoulder active' : 'pro-shoulder'} data-button="r">
+        <path d="M313 73c5-15 15-23 31-23h25c15 0 26 8 30 23Z" />
+        <text x="356" y="67" textAnchor="middle">
+          R
+        </text>
+      </g>
       <path
-        className={active(buttons, 'l', 'zl') ? 'pro-shoulder active' : 'pro-shoulder'}
-        d="M116 73c26-24 62-37 112-31l-6 38H130Z"
+        className="controller-body pro-body"
+        d="M64 112c7-23 28-39 52-39h293c24 0 45 16 52 39l20 80-102 130H153L50 192Z"
       />
       <path
-        className={active(buttons, 'r', 'zr') ? 'pro-shoulder active' : 'pro-shoulder'}
-        d="M452 42c50-6 86 7 112 31l-14 7h-92Z"
+        className="pro-grip pro-grip-left"
+        d="M50 192l103 130-27 73c-9 25-28 40-54 41-22 1-36-9-45-25-9-16-12-28-9-47Z"
       />
+      <path
+        className="pro-grip pro-grip-right"
+        d="M481 192 379 322l27 73c9 25 28 40 54 41 22 1 36-9 45-25 9-16 12-28 9-47Z"
+      />
+      <path className="pro-body-seam" d="m50 192 103 130h226l102-130" />
+      <Stick
+        cx={132}
+        cy={148}
+        x={leftStick?.x}
+        y={leftStick?.y}
+        pressed={buttons?.leftStick}
+        scale={0.76}
+      />
+      <ProDPad buttons={buttons} />
+      <Stick
+        cx={313}
+        cy={253}
+        x={rightStick?.x}
+        y={rightStick?.y}
+        pressed={buttons?.rightStick}
+        scale={0.76}
+      />
+      <Control cx={376} cy={131} label="X" pressed={buttons?.x} size={17} />
+      <Control cx={376} cy={198} label="B" pressed={buttons?.b} size={17} />
+      <Control cx={342} cy={165} label="Y" pressed={buttons?.y} size={17} />
+      <Control cx={410} cy={165} label="A" pressed={buttons?.a} size={17} />
+      <g className={buttons?.minus ? 'diagram-minus-plus active' : 'diagram-minus-plus'}>
+        <rect x="237" y="135" width="25" height="7" rx="3.5" />
+      </g>
+      <g className={buttons?.plus ? 'diagram-minus-plus active' : 'diagram-minus-plus'}>
+        <path d="M285 126h7v10h10v7h-10v10h-7v-10h-10v-7h10Z" />
+      </g>
+      <SymbolButton x={248} y={190} pressed={buttons?.capture} shape="square">
+        <circle className="capture-ring" r="7" />
+      </SymbolButton>
+      <SymbolButton x={282} y={190} pressed={buttons?.home}>
+        <path className="home-mark" d="m-7 1 7-6 7 6v7H2V3h-4v5h-5Z" />
+      </SymbolButton>
+      <g className="pro-player-leds" aria-hidden="true">
+        {[0, 1, 2, 3].map((index) => (
+          <circle key={index} cx={247 + index * 10} cy="218" r="2" />
+        ))}
+      </g>
+      <path className="controller-highlight pro-highlight" d="M79 110c8-15 23-24 42-24h282" />
+      <path className="controller-highlight pro-highlight" d="M37 362c-2 21 2 38 13 49" />
+      <path className="controller-highlight pro-highlight" d="M488 362c2 21-2 38-13 49" />
     </svg>
   );
 }

@@ -48,7 +48,7 @@ test.beforeEach(async ({ page }) => {
           reply[13] = 0x10;
           reply.set(data.slice(10, 14), 14);
           reply[18] = data[14];
-          reply.set([0x6a, 0x4b, 0xc3, 0x21, 0x16, 0x2f], 19);
+          reply.set([0x6a, 0x4b, 0xc3, 0x21, 0x16, 0x2f, 0xff, 0x32, 0x78, 0x1e, 0xdc, 0x00], 19);
           queueMicrotask(() => {
             const event = new Event('inputreport');
             Object.defineProperties(event, {
@@ -89,7 +89,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('connects a mocked Pro Controller directly into the button playground', async ({ page }) => {
+test('connects a mocked Pro Controller into colours before the test playground', async ({
+  page,
+}) => {
   const externalRequests: string[] = [];
   const applicationOrigin = `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT ?? '5173'}`;
   page.on('request', (request) => {
@@ -98,12 +100,19 @@ test('connects a mocked Pro Controller directly into the button playground', asy
 
   await page.goto('/');
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/icon.svg');
-  await expect(
-    page.getByRole('heading', { name: /See exactly what your controller/i })
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Test your controller/i })).toBeVisible();
   await page.getByRole('button', { name: 'Connect controller' }).click();
   await page.getByRole('button', { name: 'Open controller picker' }).click();
   await expect(page.getByText('Nintendo Switch Pro Controller').first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Controller colours' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Colours', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page'
+  );
+  await page
+    .getByRole('navigation', { name: 'Controller workspaces' })
+    .getByRole('button', { name: 'Tests' })
+    .click();
   await expect(page.getByRole('heading', { name: 'Button test' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Joystick movement' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Left stick' })).toBeVisible();
@@ -144,51 +153,64 @@ test('connects a mocked Pro Controller directly into the button playground', asy
   expect(joystickBox!.x).toBeGreaterThan(controllerBox!.x);
 
   await page
-    .getByRole('navigation', { name: 'Workbench' })
-    .getByRole('button', { name: 'Controller tools' })
+    .getByRole('navigation', { name: 'Controller workspaces' })
+    .getByRole('button', { name: 'Colours' })
     .click();
-  const toolsEyebrow = page.getByText('Persistent tools', { exact: true });
-  const toolsHeading = page.getByRole('heading', { name: 'Controller settings' });
+  const toolsEyebrow = page.getByText('Colours & backup', { exact: true });
+  const toolsHeading = page.getByRole('heading', { name: 'Controller colours' });
   const eyebrowBox = await toolsEyebrow.boundingBox();
   const headingBox = await toolsHeading.boundingBox();
   expect(eyebrowBox).not.toBeNull();
   expect(headingBox).not.toBeNull();
   expect(eyebrowBox!.y).toBeLessThan(headingBox!.y);
-  await expect(page.getByText('Retail colours')).toBeVisible();
+  await expect(page.getByText('Retail editions')).toBeVisible();
   await expect(page.getByRole('status')).toContainText('Loaded');
   await expect(page.getByRole('status')).toHaveClass(/tool-status-loaded/);
   await expect(page.locator('.tool-status-dot')).toHaveCSS('background-color', 'rgb(22, 131, 79)');
   await expect(page.getByRole('status')).toContainText('loaded automatically on connection');
   await expect(page.getByLabel('Body')).toHaveValue('#6a4bc3');
   await expect(page.getByLabel('Buttons')).toHaveValue('#21162f');
-  await expect(page.locator('.retail-color')).toHaveCount(15);
-  await page.getByRole('button', { name: 'Neon blue' }).click();
+  await expect(page.getByLabel('Left grip')).toHaveValue('#ff3278');
+  await expect(page.getByLabel('Right grip')).toHaveValue('#1edc00');
+  await expect(page.locator('.retail-color')).toHaveCount(6);
+  await page.getByRole('button', { name: 'Splatoon 2' }).click();
+  await expect(page.getByLabel('Body')).toHaveValue('#313232');
+  await expect(page.getByLabel('Buttons')).toHaveValue('#ffffff');
+  await expect(page.getByLabel('Left grip')).toHaveValue('#1edc00');
+  await expect(page.getByLabel('Right grip')).toHaveValue('#ff3278');
+  await page.getByLabel('Body').fill('#0ab9e6');
+  await page.getByLabel('Buttons').fill('#001e1e');
   await expect(page.getByLabel('Body')).toHaveValue('#0ab9e6');
   await expect(page.getByLabel('Buttons')).toHaveValue('#001e1e');
+  await expect(page.getByLabel('Left grip')).toHaveValue('#1edc00');
+  await expect(page.getByLabel('Right grip')).toHaveValue('#ff3278');
 
   await page
-    .getByRole('navigation', { name: 'Workbench' })
+    .getByRole('navigation', { name: 'Controller workspaces' })
     .getByRole('button', { name: 'Tests' })
     .click();
 
   await page.getByRole('button', { name: 'Save button result' }).click();
   await page
-    .getByRole('navigation', { name: 'Workbench' })
+    .getByRole('navigation', { name: 'Controller workspaces' })
     .getByRole('button', { name: /Results/ })
     .click();
   await expect(page.getByText(/Research-based reference ranges produce/i)).toBeVisible();
   await page.getByRole('button', { name: 'Finish report' }).click();
   await expect(page.getByRole('heading', { name: 'Your report is finished' })).toBeVisible();
   await page.getByRole('button', { name: /Start again/ }).click();
-  await expect(
-    page.getByRole('heading', { name: /See exactly what your controller/i })
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Test your controller/i })).toBeVisible();
   await page.getByRole('button', { name: 'Connect controller' }).click();
   await expect(
     page.getByText('Choose the Joy-Con or Pro Controller you want to test.')
   ).toBeVisible();
   await page.getByRole('button', { name: 'Open controller picker' }).click();
   await expect(page.locator('.device-strip')).toContainText('Left Joy-Con');
+  await expect(page.getByRole('heading', { name: 'Controller colours' })).toBeVisible();
+  await page
+    .getByRole('navigation', { name: 'Controller workspaces' })
+    .getByRole('button', { name: 'Tests' })
+    .click();
   await expect(page.getByRole('heading', { name: 'Left stick' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Right stick' })).toHaveCount(0);
   expect(externalRequests).toEqual([]);
@@ -220,6 +242,11 @@ test('connected workbench layouts have no horizontal overflow at a narrow width'
   await page.goto('/');
   await page.getByRole('button', { name: 'Connect controller' }).click();
   await page.getByRole('button', { name: 'Open controller picker' }).click();
+  await expect(page.getByRole('heading', { name: 'Controller colours' })).toBeVisible();
+  await page
+    .getByRole('navigation', { name: 'Controller workspaces' })
+    .getByRole('button', { name: 'Tests' })
+    .click();
   await expect(page.getByRole('heading', { name: 'Joystick movement' })).toBeVisible();
   const dimensions = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
@@ -241,10 +268,10 @@ test('connected workbench layouts have no horizontal overflow at a narrow width'
   await page.getByRole('button', { name: /Back to test suite/ }).click();
 
   await page
-    .getByRole('navigation', { name: 'Workbench' })
-    .getByRole('button', { name: 'Controller tools' })
+    .getByRole('navigation', { name: 'Controller workspaces' })
+    .getByRole('button', { name: 'Colours' })
     .click();
-  await expect(page.getByText('Retail colours')).toBeVisible();
+  await expect(page.getByText('Retail editions')).toBeVisible();
   const toolsDimensions = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,

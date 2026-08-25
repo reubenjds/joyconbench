@@ -42,6 +42,8 @@ describe('WebHID settings transactions', () => {
     await transport.open(device as unknown as HIDDevice);
     await expect(transport.readSpi(0x6050, 6)).resolves.toEqual(new Uint8Array([1, 2, 3, 4, 5, 6]));
     await expect(transport.writeSpi(0x6050, new Uint8Array([1, 2, 3]))).resolves.toBeUndefined();
+    await expect(transport.readSpi(0x8010, 22)).resolves.toHaveLength(22);
+    await expect(transport.writeSpi(0x8026, new Uint8Array(26))).resolves.toBeUndefined();
   });
 
   it('rejects oversized transfers before sending them', async () => {
