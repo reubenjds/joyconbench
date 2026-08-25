@@ -1518,10 +1518,53 @@ h3 {
   border-bottom: 1px solid var(--line);
   padding-bottom: 15px;
 }
-.pairing-steps {
-  padding-left: 24px;
+.pairing-modal {
+  width: min(600px, 100%);
+  padding: 0;
 }
-.pairing-steps li,
+.pairing-modal .modal-heading {
+  align-items: center;
+  margin: 0;
+  padding: 22px 28px 19px;
+}
+.pairing-modal .modal-heading h2 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.25rem);
+}
+.pairing-content {
+  padding: 23px 28px 28px;
+}
+.pairing-steps {
+  counter-reset: pairing-step;
+  margin: 0;
+  border-top: 1px solid var(--line);
+  padding: 0;
+  list-style: none;
+}
+.pairing-steps li {
+  counter-increment: pairing-step;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  border-bottom: 1px solid var(--line);
+  padding: 13px 0;
+  line-height: 1.45;
+}
+.pairing-steps li::before {
+  content: counter(pairing-step, decimal-leading-zero);
+  color: var(--red);
+  font-size: 0.7rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  line-height: 2;
+}
+.pairing-action {
+  width: 100%;
+  justify-content: center;
+  margin-top: 22px;
+}
 .privacy-copy p {
   border-bottom: 1px solid var(--line);
   padding: 10px 0;
@@ -1590,6 +1633,30 @@ footer {
 }
 
 @media (max-width: 650px) {
+  .modal-backdrop {
+    place-items: end center;
+    padding: 10px;
+  }
+  .pairing-modal {
+    max-height: calc(100dvh - 20px);
+  }
+  .pairing-modal .modal-heading {
+    padding: 19px 18px 16px;
+  }
+  .pairing-modal .modal-heading h2 {
+    font-size: 1.65rem;
+  }
+  .pairing-content {
+    padding: 18px;
+  }
+  .pairing-steps li {
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 10px;
+    padding: 11px 0;
+  }
+  .pairing-action {
+    margin-top: 18px;
+  }
   .site-header {
     gap: 8px;
     padding: 9px 14px;

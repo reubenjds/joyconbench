@@ -137,6 +137,15 @@ test('connects a mocked Pro Controller directly into the button playground', asy
 test('informational layout has no horizontal overflow at a narrow width', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto('/');
+  await page.getByRole('button', { name: 'Connect controller' }).click();
+  const modal = page.getByRole('dialog', { name: 'Connect a controller' });
+  await expect(modal).toBeVisible();
+  const modalBox = await modal.boundingBox();
+  expect(modalBox).not.toBeNull();
+  expect(modalBox!.x).toBeGreaterThanOrEqual(0);
+  expect(modalBox!.x + modalBox!.width).toBeLessThanOrEqual(360);
+  expect(modalBox!.y).toBeGreaterThanOrEqual(0);
+  expect(modalBox!.y + modalBox!.height).toBeLessThanOrEqual(780);
   const dimensions = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,

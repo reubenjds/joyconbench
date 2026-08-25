@@ -401,17 +401,29 @@ export default function App() {
         <a href="https://github.com/reubenjds/joyconbench">Source code</a>
       </footer>
 
-      <Modal open={pairingOpen} title="Pair a controller" onClose={() => setPairingOpen(false)}>
-        <ol className="pairing-steps">
-          <li>
-            Pair it in your computer’s Bluetooth settings first. Pro Controllers can also use USB.
-          </li>
-          <li>Keep it awake by pressing a button.</li>
-          <li>Choose only the Nintendo controller in the browser picker.</li>
-        </ol>
-        <Button onClick={connect} disabled={controller.status === 'connecting'} autoFocus>
-          {controller.status === 'connecting' ? 'Connecting…' : 'Open controller picker'}
-        </Button>
+      <Modal
+        open={pairingOpen}
+        title="Connect a controller"
+        onClose={() => setPairingOpen(false)}
+        className="pairing-modal"
+      >
+        <div className="pairing-content">
+          <ol className="pairing-steps">
+            <li>
+              Pair it in your computer’s Bluetooth settings first. Pro Controllers can also use USB.
+            </li>
+            <li>Keep it awake by pressing a button.</li>
+            <li>Choose only the Nintendo controller in the browser picker.</li>
+          </ol>
+          <Button
+            className="pairing-action"
+            onClick={connect}
+            disabled={controller.status === 'connecting'}
+            autoFocus
+          >
+            {controller.status === 'connecting' ? 'Connecting…' : 'Open controller picker'}
+          </Button>
+        </div>
       </Modal>
 
       <Modal open={privacyOpen} title="Private by design" onClose={() => setPrivacyOpen(false)}>
