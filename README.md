@@ -2,6 +2,8 @@
 
 Browser-based diagnostics and settings tools for original Nintendo Switch Joy-Con.
 
+**Live Site:** [reubenjds.github.io/joyconbench](https://reubenjds.github.io/joyconbench/)
+
 <img width="900" height="512" alt="image" src="https://github.com/user-attachments/assets/e1126c2c-3d40-4882-a66f-a9de1fefbf4f" />
 <img width="900" height="512" alt="image" src="https://github.com/user-attachments/assets/0e3849f5-4b66-405a-99a6-4deb8f7aa399" /> 
 
