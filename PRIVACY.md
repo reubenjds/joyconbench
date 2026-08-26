@@ -15,10 +15,11 @@ streams, and controller calibration values.
 ## Controller settings backups
 
 Settings backups are created only when requested and downloaded directly by the browser. The compact
-binary container holds 97 bytes from documented controller regions for the colour-use flag, factory
-motion calibration, left/right stick calibration, appearance, and sensor/stick parameters. They
-exclude serial, pairing, firmware, patch, and unidentified flash regions. A backup stays on the
-user's device and is never added to a diagnostic report or uploaded by JoyConBench.
+binary container holds 145 bytes from documented controller regions for the colour-use flag,
+factory and user motion calibration, factory and user stick calibration, appearance, and
+sensor/stick parameters. They exclude serial, pairing, firmware, patch, and unidentified flash
+regions. A backup stays on the user's device and is never added to a diagnostic report or uploaded
+by JoyConBench.
 
 Restoring or changing colours is a persistent controller operation. JoyConBench requires explicit
 confirmation, restricts the target addresses, rejects mismatched controller types or checksums, and

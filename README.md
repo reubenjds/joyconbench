@@ -1,6 +1,6 @@
 # JoyConBench
 
-Browser-based diagnostics and settings tools for original Nintendo Switch Joy-Con and Pro Controllers.
+Browser-based diagnostics and settings tools for original Nintendo Switch Joy-Con.
 
 ## Features
 
@@ -14,7 +14,7 @@ Browser-based diagnostics and settings tools for original Nintendo Switch Joy-Co
 
 - Node.js 24 and pnpm to run locally
 - Desktop Chrome, Edge, or another Chromium browser with WebHID
-- Original Joy-Con over Bluetooth, or a Pro Controller over Bluetooth or USB
+- Original left or right Joy-Con over Bluetooth
 
 > Note: Safari, Firefox, iOS, third-party controllers, and Switch 2 controllers are not supported.
 
