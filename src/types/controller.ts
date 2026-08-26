@@ -1,8 +1,8 @@
 export const NINTENDO_VENDOR_ID = 0x057e;
-export const SUPPORTED_PRODUCT_IDS = [0x2006, 0x2007, 0x2009] as const;
+export const SUPPORTED_PRODUCT_IDS = [0x2006, 0x2007] as const;
 
-export type ControllerKind = 'joycon-left' | 'joycon-right' | 'pro-controller';
-export type ConnectionKind = 'bluetooth' | 'usb' | 'unknown';
+export type ControllerKind = 'joycon-left' | 'joycon-right';
+export type ConnectionKind = 'bluetooth' | 'unknown';
 export type BatteryPercentage = 0 | 25 | 50 | 75 | 100;
 export interface BatteryStatus {
   percentage: BatteryPercentage;
@@ -12,6 +12,19 @@ export type StickId = 'left' | 'right';
 
 export type Vector2 = { x: number; y: number };
 export type Vector3 = { x: number; y: number; z: number };
+
+export interface StickAxisCalibration {
+  minimum: number;
+  center: number;
+  maximum: number;
+}
+
+export interface StickCalibration {
+  x: StickAxisCalibration;
+  y: StickAxisCalibration;
+}
+
+export type StickCalibrationSet = Partial<Record<StickId, StickCalibration>>;
 
 export type ControllerButton =
   | 'a'
@@ -159,12 +172,10 @@ export const EMPTY_BUTTONS: ButtonState = {
 export function controllerKindFromProductId(productId: number): ControllerKind | null {
   if (productId === 0x2006) return 'joycon-left';
   if (productId === 0x2007) return 'joycon-right';
-  if (productId === 0x2009) return 'pro-controller';
   return null;
 }
 
 export function controllerDisplayName(kind: ControllerKind): string {
   if (kind === 'joycon-left') return 'Left Joy-Con';
-  if (kind === 'joycon-right') return 'Right Joy-Con';
-  return 'Nintendo Switch Pro Controller';
+  return 'Right Joy-Con';
 }

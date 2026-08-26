@@ -9,12 +9,11 @@ function setStick(bytes: Uint8Array, offset: number, x: number, y: number) {
 }
 
 describe('Nintendo report decoder', () => {
-  it('decodes Pro Controller buttons, sticks, battery, counter, and three IMU frames', () => {
+  it('decodes right Joy-Con buttons, stick, battery, counter, and three IMU frames', () => {
     const bytes = new Uint8Array(48);
     bytes[0] = 254;
     bytes[1] = 0x80;
     bytes[2] = 0b10001000;
-    bytes[4] = 0b11000010;
     setStick(bytes, 5, 2048, 2048);
     setStick(bytes, 8, 4095, 0);
     bytes[12] = 0x10;
@@ -24,7 +23,7 @@ describe('Nintendo report decoder', () => {
     const sample = decodeStandardFullReport(
       0x30,
       new DataView(bytes.buffer),
-      'pro-controller',
+      'joycon-right',
       'bluetooth',
       100
     );
@@ -33,10 +32,7 @@ describe('Nintendo report decoder', () => {
     expect(sample.battery).toEqual({ percentage: 100, charging: false });
     expect(sample.buttons.a).toBe(true);
     expect(sample.buttons.zr).toBe(true);
-    expect(sample.buttons.up).toBe(true);
-    expect(sample.buttons.l).toBe(true);
-    expect(sample.buttons.zl).toBe(true);
-    expect(sample.sticks.left).toEqual({ x: 0, y: 0 });
+    expect(sample.sticks.left).toBeUndefined();
     expect(sample.sticks.right?.x).toBe(1);
     expect(sample.sticks.right?.y).toBe(-1);
     expect(sample.imuFrames).toHaveLength(3);
@@ -72,6 +68,39 @@ describe('Nintendo report decoder', () => {
 
   it('clamps nominal stick normalization', () => {
     expect(normalizeStick({ x: 9999, y: -10 })).toEqual({ x: 1, y: -1 });
+  });
+
+  it('normalizes each side of a calibrated center using its measured range', () => {
+    const calibration = {
+      x: { minimum: 1300, center: 2100, maximum: 3100 },
+      y: { minimum: 1200, center: 2000, maximum: 2800 },
+    };
+
+    expect(normalizeStick({ x: 2100, y: 2000 }, calibration)).toEqual({ x: 0, y: 0 });
+    expect(normalizeStick({ x: 2600, y: 1600 }, calibration)).toEqual({ x: 0.5, y: -0.5 });
+    expect(normalizeStick({ x: 5000, y: -100 }, calibration)).toEqual({ x: 1, y: -1 });
+  });
+
+  it('applies supplied calibration while preserving raw stick values', () => {
+    const bytes = new Uint8Array(48);
+    setStick(bytes, 5, 2100, 2000);
+    const calibration = {
+      left: {
+        x: { minimum: 1300, center: 2100, maximum: 3100 },
+        y: { minimum: 1200, center: 2000, maximum: 2800 },
+      },
+    };
+    const sample = decodeStandardFullReport(
+      0x30,
+      new DataView(bytes.buffer),
+      'joycon-left',
+      'bluetooth',
+      100,
+      calibration
+    );
+
+    expect(sample.rawSticks.left).toEqual({ x: 2100, y: 2000 });
+    expect(sample.sticks.left).toEqual({ x: 0, y: 0 });
   });
 
   it('allows scoped SPI settings access but blocks erase and firmware commands', () => {
