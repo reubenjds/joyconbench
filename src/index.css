@@ -563,6 +563,9 @@ h3 {
 .joycon-diagram {
   max-width: 210px;
 }
+.joycon-diagram.with-side-view {
+  max-width: 300px;
+}
 .live-joysticks {
   width: 100%;
   border: 1px solid var(--ink);
@@ -711,96 +714,188 @@ h3 {
 .controller-body {
   fill: var(--controller-body);
   stroke: var(--ink);
-  stroke-width: 3;
+  stroke-width: 1;
 }
-.controller-highlight {
-  fill: none;
-  stroke: rgb(255 255 255 / 36%);
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-.diagram-rail > rect:first-child {
-  fill: #3b3f48;
+.diagram-shoulder {
+  fill: #44484c;
   stroke: var(--ink);
-  stroke-width: 1.5;
-}
-.diagram-rail > path {
-  fill: none;
-  stroke: #858b98;
   stroke-width: 1;
 }
-.diagram-rail text {
-  fill: #d8dbe2;
-  font-size: 6px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  pointer-events: none;
+.diagram-shoulder.active {
+  fill: var(--red);
 }
-.diagram-rail .rail-sync {
-  fill: #0d0e11;
-  stroke: #a3a8b2;
-  stroke-width: 0.8;
-}
-.diagram-rail .rail-button {
-  fill: #191b20;
-  stroke: #777d89;
+.diagram-front-rail .front-rail {
+  fill: #44484c;
+  stroke: var(--ink);
   stroke-width: 1;
 }
-.diagram-rail .rail-button.active {
+.diagram-front-rail .front-side-key {
+  fill: var(--controller-body);
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+.diagram-front-rail .front-side-key.active {
   fill: var(--red);
   stroke: white;
 }
+.diagram-side-view .side-trigger-face,
+.diagram-side-view .side-shoulder {
+  fill: #44484c;
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+.diagram-side-view .side-trigger-face.active,
+.diagram-side-view .side-shoulder.active {
+  fill: var(--red);
+}
+.diagram-side-view .side-shell,
+.diagram-side-view .side-key {
+  fill: var(--controller-body);
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+.diagram-side-view .side-shell-seam {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+.diagram-side-view .side-rail {
+  fill: #44484c;
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+.diagram-side-view .side-rail-groove,
+.diagram-side-view .sync-mark {
+  fill: none;
+  stroke: #858b98;
+  stroke-width: 0.8;
+}
+.diagram-side-view text {
+  fill: white;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+.diagram-side-view .trigger-label {
+  fill: white;
+  font-size: 7px;
+}
+.diagram-side-view .rail-label {
+  fill: #090a0c;
+  letter-spacing: 0;
+}
+.diagram-side-view .rail-sync,
+.diagram-side-view .side-screw {
+  fill: #0d0e11;
+  stroke: #a3a8b2;
+  stroke-width: 1;
+}
+.diagram-side-view .rail-button {
+  fill: #999595;
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+.diagram-side-view .rail-button.active {
+  fill: var(--red);
+  stroke: white;
+}
+.diagram-side-view .release-mark {
+  fill: #44484c;
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+.diagram-side-view .release-panel {
+  fill: #2e2f31;
+  stroke: var(--ink);
+  stroke-width: 1;
+}
 .diagram-stick circle {
   stroke: var(--ink);
-  stroke-width: 2.5;
+  stroke-width: 1.6;
 }
 .diagram-stick .stick-well {
-  fill: #111318;
+  fill: #101216;
+  stroke-width: 2.3;
+}
+.diagram-stick .stick-well-ring {
+  fill: #24272e;
+  stroke: #090a0c;
+  stroke-width: 1.5;
 }
 .diagram-stick .stick-neck {
-  fill: #4a4e58;
+  fill: #555a64;
+  stroke: #121419;
 }
 .diagram-stick .stick-cap {
   fill: var(--controller-buttons);
   stroke: #0c0d10;
+  stroke-width: 2;
 }
-.diagram-stick.active .stick-cap {
+.diagram-stick .stick-cap-inset {
+  fill: none;
+  stroke: rgb(0 0 0 / 24%);
+  stroke-width: 1;
+}
+.diagram-stick .stick-ticks path {
+  fill: none;
+  stroke: #0a0b0e;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.diagram-stick.active .stick-cap,
+.diagram-stick.active .stick-cap-inset {
   fill: var(--red);
 }
-.diagram-control circle {
-  fill: var(--controller-buttons);
+.diagram-control .button-bezel {
+  fill: #15171b;
   stroke: var(--ink);
-  stroke-width: 1.5;
+  stroke-width: 1.2;
+}
+.diagram-control .button-face {
+  fill: var(--controller-buttons);
+  stroke: #08090b;
+  stroke-width: 1;
 }
 .diagram-control text {
   fill: white;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 700;
 }
-.diagram-control.active circle {
+.diagram-control .direction-mark {
+  fill: #050608;
+  stroke: none;
+}
+.diagram-control.active .button-face {
   fill: var(--red);
 }
 .diagram-control.active text {
   fill: white;
 }
-.diagram-shoulder {
-  fill: var(--controller-buttons);
-  stroke: none;
+.diagram-control.active .direction-mark {
+  fill: white;
 }
-.diagram-minus-plus {
+.diagram-minus-plus .minus-plus-face {
   fill: var(--controller-buttons);
+  stroke: #090a0c;
+  stroke-width: 1.1;
+  stroke-linejoin: round;
 }
-.diagram-minus-plus.active {
+.diagram-minus-plus.active .minus-plus-face {
   fill: var(--red);
 }
-.diagram-symbol > circle,
-.diagram-symbol > rect {
-  fill: var(--controller-buttons);
+.diagram-symbol .symbol-bezel {
+  fill: #15171b;
   stroke: var(--ink);
-  stroke-width: 1.5;
+  stroke-width: 1.2;
 }
-.diagram-symbol.active > circle,
-.diagram-symbol.active > rect {
+.diagram-symbol .symbol-face {
+  fill: var(--controller-buttons);
+  stroke: #08090b;
+  stroke-width: 1;
+}
+.diagram-symbol.active .symbol-face {
   fill: var(--red);
 }
 .capture-ring {
@@ -808,13 +903,23 @@ h3 {
   stroke: white;
   stroke-width: 2;
 }
+.capture-lens {
+  fill: #0b0c0f;
+  stroke: rgb(255 255 255 / 24%);
+  stroke-width: 0.8;
+}
+.home-ring {
+  fill: none;
+  stroke: #8f96a2;
+  stroke-width: 1.3;
+}
 .home-mark {
   fill: white;
 }
-.diagram-leds circle {
-  fill: #ced2d9;
-  stroke: #6d7380;
-  stroke-width: 0.6;
+.diagram-leds rect {
+  fill: #aaeeff;
+  stroke: var(--ink);
+  stroke-width: 1;
 }
 .seen-meter {
   position: absolute;

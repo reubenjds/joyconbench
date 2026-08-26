@@ -4,9 +4,9 @@ Browser-based diagnostics and colour settings tools for original Nintendo Switch
 
 **Live Site:** [reubenjds.github.io/joyconbench](https://reubenjds.github.io/joyconbench/)
 
-<img width="900" height="512" alt="image" src="https://github.com/user-attachments/assets/0e3849f5-4b66-405a-99a6-4deb8f7aa399" />
-<img width="900" height="512" alt="image" src="https://github.com/user-attachments/assets/e1126c2c-3d40-4882-a66f-a9de1fefbf4f" />
-<img width="900" height="512" alt="image" src="https://github.com/user-attachments/assets/79a1e50a-7b8c-4b91-9c10-75481e090676" />
+<img width="900" height="512" alt="Choose an appearance with a custom light-purple right Joy-Con" src="./docs/images/controller-colours.png" />
+<img width="900" height="512" alt="Button test with the updated right Joy-Con controller" src="./docs/images/button-test.png" />
+<img width="900" height="512" alt="JoyConBench diagnostic test suite" src="./docs/images/test-suite.png" />
 
 ## Features
 

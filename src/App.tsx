@@ -628,6 +628,7 @@ function BenchView({
               kind={identity.kind}
               sample={latestSample}
               colors={controllerColors ?? undefined}
+              showSideView
             />
             <LiveJoysticks
               latestSample={latestSample}
