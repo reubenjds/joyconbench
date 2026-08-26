@@ -1,6 +1,6 @@
 # JoyConBench
 
-Browser-based diagnostics and settings tools for original Nintendo Switch Joy-Con.
+Browser-based diagnostics and colour settings tools for original Nintendo Switch Joy-Con.
 
 **Live Site:** [reubenjds.github.io/joyconbench](https://reubenjds.github.io/joyconbench/)
 
