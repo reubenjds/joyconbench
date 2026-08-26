@@ -3,7 +3,6 @@ export const INPUT_REPORT_SUBCOMMAND_REPLY = 0x21;
 
 export const OUTPUT_REPORT_SUBCOMMAND = 0x01;
 export const OUTPUT_REPORT_RUMBLE = 0x10;
-export const OUTPUT_REPORT_USB = 0x80;
 
 export const SUBCOMMAND_DEVICE_INFO = 0x02;
 export const SUBCOMMAND_SET_INPUT_MODE = 0x03;

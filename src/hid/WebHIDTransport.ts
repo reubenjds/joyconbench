@@ -8,7 +8,6 @@ import {
   INPUT_REPORT_SUBCOMMAND_REPLY,
   OUTPUT_REPORT_RUMBLE,
   OUTPUT_REPORT_SUBCOMMAND,
-  OUTPUT_REPORT_USB,
   MAX_SPI_TRANSFER_BYTES,
   SUBCOMMAND_SPI_READ,
   SUBCOMMAND_SPI_WRITE,
@@ -80,18 +79,7 @@ export class WebHIDTransport {
 
   connectionKind(): ConnectionKind {
     if (!this.currentDevice) return 'unknown';
-    const outputReportIds = this.currentDevice.collections.flatMap((collection) =>
-      (collection.outputReports ?? []).map((report) => report.reportId)
-    );
-    return outputReportIds.includes(OUTPUT_REPORT_USB) ? 'usb' : 'bluetooth';
-  }
-
-  async initializeUsbIfNeeded() {
-    if (!this.currentDevice || this.connectionKind() !== 'usb') return;
-    await this.currentDevice.sendReport(OUTPUT_REPORT_USB, new Uint8Array([0x01]));
-    await this.currentDevice.sendReport(OUTPUT_REPORT_USB, new Uint8Array([0x02]));
-    await this.currentDevice.sendReport(OUTPUT_REPORT_SUBCOMMAND, new Uint8Array([0x03]));
-    await this.currentDevice.sendReport(OUTPUT_REPORT_USB, new Uint8Array([0x04]));
+    return 'bluetooth';
   }
 
   async sendSubcommand(subcommand: number, payload: number[] = []) {
