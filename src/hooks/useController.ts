@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NintendoControllerAdapter } from '../adapters/NintendoControllerAdapter';
 import { WebHIDTransport } from '../hid/WebHIDTransport';
-import type { ControllerColors, ControllerIdentity, ControllerSample } from '../types/controller';
+import type {
+  ControllerAdapter,
+  ControllerColors,
+  ControllerIdentity,
+  ControllerSample,
+} from '../types/controller';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'ready' | 'disconnected' | 'error';
 
 export function useController() {
-  const adapterRef = useRef(new NintendoControllerAdapter());
+  const adapterRef = useRef<ControllerAdapter>(new NintendoControllerAdapter());
   const samplesRef = useRef<ControllerSample[]>([]);
   const connectionEpochRef = useRef(0);
   const [latestSample, setLatestSample] = useState<ControllerSample | null>(null);

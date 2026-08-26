@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react';
-import type { NintendoControllerAdapter } from '../adapters/NintendoControllerAdapter';
 import {
   decodeSettingsBackup,
   encodeSettingsBackup,
@@ -8,6 +7,7 @@ import {
 } from '../protocol/settings';
 import type {
   ControllerColors,
+  ControllerAdapter,
   ControllerIdentity,
   ControllerSettingsBackup,
 } from '../types/controller';
@@ -41,7 +41,7 @@ export function ControllerTools({
   initialColors,
   onColorsChange,
 }: {
-  adapter: NintendoControllerAdapter;
+  adapter: ControllerAdapter;
   identity: ControllerIdentity;
   batteryCritical: boolean;
   initialColors: ControllerColors | null;
@@ -191,7 +191,7 @@ export function ControllerTools({
           <div className="panel-heading color-tool-heading">
             <div>
               <span className="sticker">Appearance</span>
-              <h2>Controller colours</h2>
+              <h2>Choose an appearance</h2>
             </div>
             <p>Preview a retail pair or choose custom body and button values.</p>
           </div>
@@ -227,16 +227,14 @@ export function ControllerTools({
             </div>
             <div className="retail-color-grid">
               {RETAIL_COLORS.map((preset) => {
-                const selected =
-                  colors.body.toLowerCase() === preset.colors.body &&
-                  colors.buttons.toLowerCase() === preset.colors.buttons;
+                const selected = colorsMatch(colors, preset.colors);
                 return (
                   <button
                     key={preset.name}
                     type="button"
                     className={selected ? 'retail-color selected' : 'retail-color'}
                     aria-pressed={selected}
-                    onClick={() => setColors(preset.colors)}
+                    onClick={() => setColors({ ...colors, ...preset.colors })}
                   >
                     <span
                       className="retail-color-swatch"
@@ -266,31 +264,21 @@ export function ControllerTools({
 
         <Panel className="backup-tool color-red">
           <span className="sticker">Settings backup</span>
-          <h2>Back up before making changes</h2>
+          <h2>Back up your settings</h2>
           <p>
-            Saves 97 bytes from documented colour, calibration, and sensor-parameter regions. It
-            excludes serial, pairing, firmware, patch, and unidentified flash data.
+            Save colours and factory or user calibration. Serial, pairing, and firmware data are
+            excluded.
           </p>
-          <dl className="backup-facts">
-            <div>
-              <dt>Backup scope</dt>
-              <dd>97 bytes</dd>
-            </div>
-            <div>
-              <dt>File format</dt>
-              <dd>Checksummed .bin</dd>
-            </div>
-          </dl>
           <div className="backup-stack">
             <Button onClick={createBackup} disabled={busy}>
-              Download settings backup
+              Download backup
             </Button>
             <Button
               className="button-secondary"
               onClick={() => fileInput.current?.click()}
               disabled={busy || batteryCritical}
             >
-              Choose backup to restore
+              Restore backup
             </Button>
             <input
               ref={fileInput}
@@ -301,8 +289,7 @@ export function ControllerTools({
             />
           </div>
           <p className="tool-fine-print">
-            JoyConBench .bin files are compact settings backups, not the old toolkit’s 512 KB raw
-            SPI images. Every chunk is checked before writing and verified afterward.
+            Downloads as a .bin file. Each section is checked before writing and verified afterward.
           </p>
         </Panel>
       </div>
@@ -402,8 +389,13 @@ function downloadBinary(value: Uint8Array, filename: string) {
 
 function defaultColors(identity: ControllerIdentity): ControllerColors {
   if (identity.kind === 'joycon-left') return RETAIL_COLORS[2].colors;
-  if (identity.kind === 'joycon-right') return RETAIL_COLORS[1].colors;
-  return RETAIL_COLORS[0].colors;
+  return RETAIL_COLORS[1].colors;
+}
+
+function colorsMatch(colors: ControllerColors, preset: ControllerColors) {
+  return (Object.keys(preset) as Array<keyof ControllerColors>).every(
+    (key) => colors[key]?.toLowerCase() === preset[key]?.toLowerCase()
+  );
 }
 
 function dateStamp() {
