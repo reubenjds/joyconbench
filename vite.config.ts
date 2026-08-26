@@ -4,11 +4,12 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const applicationVersion = process.env.npm_package_version ?? '0.1.0';
-const commit = process.env.CF_PAGES_COMMIT_SHA?.slice(0, 7) ?? 'local';
+const commit = (process.env.CF_PAGES_COMMIT_SHA ?? process.env.GITHUB_SHA)?.slice(0, 7) ?? 'local';
 const productionBranch = !process.env.CF_PAGES || process.env.CF_PAGES_BRANCH === 'main';
+const basePath = process.env.VITE_BASE_PATH ?? '/';
 
 export default defineConfig({
-  base: '/',
+  base: basePath,
   plugins: [
     react(),
     tailwindcss(),
@@ -23,12 +24,14 @@ export default defineConfig({
         theme_color: '#0000ff',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/',
-        icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+        start_url: basePath,
+        icons: [
+          { src: `${basePath}icon.svg`, sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+        ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,json}'],
-        navigateFallback: '/index.html',
+        navigateFallback: `${basePath}index.html`,
       },
     }),
   ],
