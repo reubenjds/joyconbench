@@ -2,18 +2,19 @@ import {
   EMPTY_BUTTONS,
   type BatteryStatus,
   type ConnectionKind,
+  type ControllerCalibration,
   type ControllerKind,
   type ControllerSample,
   type ImuFrame,
   type StickCalibration,
-  type StickCalibrationSet,
   type Vector2,
   type Vector3,
 } from '../types/controller';
+import { NOMINAL_CONTROLLER_CALIBRATION } from './calibration';
 import { INPUT_REPORT_STANDARD_FULL } from './nintendo';
 
 const ACCELEROMETER_G_PER_UNIT = 0.000244;
-const GYROSCOPE_DPS_PER_UNIT = 0.06103;
+const GYROSCOPE_DPS_PER_UNIT = 1 / 14.247;
 
 function bit(value: number, index: number) {
   return (value & (1 << index)) !== 0;
@@ -49,12 +50,34 @@ function normalizeCalibratedAxis(value: number, calibration: StickCalibration['x
   return Math.max(-1, Math.min(1, delta / range));
 }
 
-function readVector(data: DataView, offset: number, scale: number): Vector3 {
+function readRawVector(data: DataView, offset: number): Vector3 {
   return {
-    x: data.getInt16(offset, true) * scale,
-    y: data.getInt16(offset + 2, true) * scale,
-    z: data.getInt16(offset + 4, true) * scale,
+    x: data.getInt16(offset, true),
+    y: data.getInt16(offset + 2, true),
+    z: data.getInt16(offset + 4, true),
   };
+}
+
+function calibrateVector(
+  vector: Vector3,
+  calibration: ControllerCalibration['imu']['accelerometer'],
+  kind: 'accelerometer' | 'gyroscope'
+): Vector3 {
+  const axes = ['x', 'y', 'z'] as const;
+  return Object.fromEntries(
+    axes.map((axis) => {
+      const { offset, scale } = calibration[axis];
+      const divisor = scale - offset;
+      const calibrated =
+        kind === 'gyroscope'
+          ? ((vector[axis] - offset) * scale) / divisor
+          : (vector[axis] * scale) / divisor;
+      return [
+        axis,
+        calibrated * (kind === 'gyroscope' ? GYROSCOPE_DPS_PER_UNIT : ACCELEROMETER_G_PER_UNIT),
+      ];
+    })
+  ) as Vector3;
 }
 
 function readBattery(value: number): BatteryStatus {
@@ -64,13 +87,24 @@ function readBattery(value: number): BatteryStatus {
   return { percentage, charging: (nibble & 0x01) !== 0 };
 }
 
-function decodeImu(data: DataView): readonly [ImuFrame, ImuFrame, ImuFrame] {
+function decodeImu(
+  data: DataView,
+  calibration: ControllerCalibration['imu']
+): readonly [ImuFrame, ImuFrame, ImuFrame] {
   const frames = [0, 1, 2].map((index) => {
     const offset = 12 + index * 12;
     return {
       offsetMs: index * 5,
-      accelerometer: readVector(data, offset, ACCELEROMETER_G_PER_UNIT),
-      gyroscope: readVector(data, offset + 6, GYROSCOPE_DPS_PER_UNIT),
+      accelerometer: calibrateVector(
+        readRawVector(data, offset),
+        calibration.accelerometer,
+        'accelerometer'
+      ),
+      gyroscope: calibrateVector(
+        readRawVector(data, offset + 6),
+        calibration.gyroscope,
+        'gyroscope'
+      ),
     };
   });
   return frames as unknown as readonly [ImuFrame, ImuFrame, ImuFrame];
@@ -82,7 +116,7 @@ export function decodeStandardFullReport(
   kind: ControllerKind,
   connection: ConnectionKind,
   timestamp = performance.now(),
-  stickCalibration: StickCalibrationSet = {}
+  calibration: ControllerCalibration = NOMINAL_CONTROLLER_CALIBRATION
 ): ControllerSample {
   if (reportId !== INPUT_REPORT_STANDARD_FULL) {
     throw new Error(`Unsupported input report 0x${reportId.toString(16)}`);
@@ -129,12 +163,13 @@ export function decodeStandardFullReport(
     sticks: Object.fromEntries(
       Object.entries(rawSticks).map(([id, value]) => [
         id,
-        normalizeStick(value, stickCalibration[id as keyof StickCalibrationSet]),
+        normalizeStick(value, calibration.sticks[id as keyof ControllerCalibration['sticks']]),
       ])
     ),
-    imuFrames: decodeImu(data),
+    imuFrames: decodeImu(data, calibration.imu),
     battery: readBattery(data.getUint8(1)),
-    packetCounter: data.getUint8(0),
+    reportTimer: data.getUint8(0),
     connection,
+    calibration: calibration.sources,
   };
 }

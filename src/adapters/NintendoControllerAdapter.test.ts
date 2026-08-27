@@ -19,6 +19,13 @@ function setStick(bytes: Uint8Array, offset: number, x: number, y: number) {
   bytes[offset + 2] = (y >> 4) & 0xff;
 }
 
+function packImu(values: number[]) {
+  const bytes = new Uint8Array(24);
+  const view = new DataView(bytes.buffer);
+  values.forEach((value, index) => view.setInt16(index * 2, value, true));
+  return bytes;
+}
+
 const device = {
   vendorId: 0x057e,
   productId: 0x2006,
@@ -57,9 +64,10 @@ describe('NintendoControllerAdapter initialization', () => {
     await rejection;
   });
 
-  it('loads active stick calibration before initialization completes', async () => {
+  it('loads active stick and IMU calibration before initialization completes', async () => {
     const report = new Uint8Array(48);
     setStick(report, 5, 2100, 2000);
+    new DataView(report.buffer).setInt16(18, 100, true);
     let reportListener: (event: { reportId: number; data: DataView }) => void = () => undefined;
     const transport = {
       async open() {
@@ -82,13 +90,24 @@ describe('NintendoControllerAdapter initialization', () => {
         if (address === 0x603d) {
           return packStickValues([1000, 900, 2100, 2000, 800, 700]).slice(0, length);
         }
+        if (address === 0x6020) {
+          return packImu([0, 0, 0, 16384, 16384, 16384, 100, 0, 0, 13471, 13371, 13371]).slice(
+            0,
+            length
+          );
+        }
         if (address === 0x8010) return new Uint8Array(length).fill(0xff);
+        if (address === 0x8026) return new Uint8Array(length).fill(0xff);
         return new Uint8Array(length);
       },
       async sendRumble() {},
     };
     const adapter = new NintendoControllerAdapter(transport as unknown as WebHIDTransport);
-    const samples: Array<{ sticks: { left?: { x: number; y: number } } }> = [];
+    const samples: Array<{
+      sticks: { left?: { x: number; y: number } };
+      imuFrames: ArrayLike<{ gyroscope: { x: number } }>;
+      calibration: { imu: string };
+    }> = [];
     adapter.subscribe((sample) => samples.push(sample));
 
     await adapter.connect(device);
@@ -96,5 +115,7 @@ describe('NintendoControllerAdapter initialization', () => {
     reportListener({ reportId: 0x30, data: new DataView(report.buffer) });
 
     expect(samples.at(-1)?.sticks.left).toEqual({ x: 0, y: 0 });
+    expect(samples.at(-1)?.imuFrames[0].gyroscope.x).toBe(0);
+    expect(samples.at(-1)?.calibration.imu).toBe('factory');
   });
 });

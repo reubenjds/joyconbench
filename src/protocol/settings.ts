@@ -6,6 +6,7 @@ import type {
 } from '../types/controller';
 import {
   FACTORY_LEFT_STICK_REGION,
+  FACTORY_MOTION_REGION,
   FACTORY_RIGHT_STICK_REGION,
   USER_MOTION_REGION,
   USER_STICK_REGION,
@@ -20,7 +21,7 @@ const BINARY_BACKUP_CHECKSUM_LENGTH = 32;
 
 export const LEGACY_SETTINGS_REGIONS = [
   { name: 'color-use', address: 0x601b, length: 1 },
-  { name: 'factory-motion-calibration', address: 0x6020, length: 24 },
+  FACTORY_MOTION_REGION,
   FACTORY_LEFT_STICK_REGION,
   FACTORY_RIGHT_STICK_REGION,
   { name: 'appearance', address: 0x6050, length: 12 },

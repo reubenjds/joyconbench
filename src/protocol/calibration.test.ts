@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { decodeStickCalibration, resolveStickCalibration } from './calibration';
+import {
+  decodeImuCalibration,
+  decodeStickCalibration,
+  resolveImuCalibration,
+  resolveStickCalibration,
+} from './calibration';
 
 function packStickValues(values: [number, number, number, number, number, number]) {
   const packed = new Uint8Array(9);
@@ -10,6 +15,13 @@ function packStickValues(values: [number, number, number, number, number, number
     packed[offset + 2] = (values[index + 1] >> 4) & 0xff;
   }
   return packed;
+}
+
+function packImu(values: number[]) {
+  const bytes = new Uint8Array(24);
+  const view = new DataView(bytes.buffer);
+  values.forEach((value, index) => view.setInt16(index * 2, value, true));
+  return bytes;
 }
 
 describe('stick calibration', () => {
@@ -36,11 +48,37 @@ describe('stick calibration', () => {
 
     const resolved = resolveStickCalibration('joycon-left', factoryLeft, factoryRight, user);
 
-    expect(resolved.left?.x.center).toBe(2200);
-    expect(resolved.right).toBeUndefined();
+    expect(resolved.calibration.left?.x.center).toBe(2200);
+    expect(resolved.calibration.right).toBeUndefined();
+    expect(resolved.sources.left).toBe('user');
   });
 
   it('rejects corrupt calibration ranges', () => {
     expect(decodeStickCalibration(new Uint8Array(9), 'left')).toBeNull();
+  });
+});
+
+describe('IMU calibration', () => {
+  const factory = packImu([-120, 20, 80, 16384, 16400, 16320, -30, 15, 45, 13371, 13380, 13360]);
+
+  it('decodes signed offsets and validates all scale divisors', () => {
+    const decoded = decodeImuCalibration(factory);
+    expect(decoded?.accelerometer.x).toEqual({ offset: -120, scale: 16384 });
+    expect(decoded?.gyroscope.z).toEqual({ offset: 45, scale: 13360 });
+    const invalid = factory.slice();
+    new DataView(invalid.buffer).setInt16(18, -30, true);
+    expect(decodeImuCalibration(invalid)).toBeNull();
+  });
+
+  it('prefers valid user calibration, falls back to factory, then nominal', () => {
+    const user = new Uint8Array(26).fill(0xff);
+    const userData = packImu([1, 2, 3, 16001, 16002, 16003, 4, 5, 6, 13004, 13005, 13006]);
+    user.set([0xb2, 0xa1], 0);
+    user.set(userData, 2);
+    expect(resolveImuCalibration(factory, user).source).toBe('user');
+    expect(resolveImuCalibration(factory, new Uint8Array(26).fill(0xff)).source).toBe('factory');
+    expect(resolveImuCalibration(new Uint8Array(24), new Uint8Array(26).fill(0xff)).source).toBe(
+      'nominal'
+    );
   });
 });

@@ -9,7 +9,7 @@ function setStick(bytes: Uint8Array, offset: number, x: number, y: number) {
 }
 
 describe('Nintendo report decoder', () => {
-  it('decodes right Joy-Con buttons, stick, battery, counter, and three IMU frames', () => {
+  it('decodes right Joy-Con buttons, stick, battery, timer, and three IMU frames', () => {
     const bytes = new Uint8Array(48);
     bytes[0] = 254;
     bytes[1] = 0x80;
@@ -28,7 +28,7 @@ describe('Nintendo report decoder', () => {
       100
     );
 
-    expect(sample.packetCounter).toBe(254);
+    expect(sample.reportTimer).toBe(254);
     expect(sample.battery).toEqual({ percentage: 100, charging: false });
     expect(sample.buttons.a).toBe(true);
     expect(sample.buttons.zr).toBe(true);
@@ -36,9 +36,9 @@ describe('Nintendo report decoder', () => {
     expect(sample.sticks.right?.x).toBe(1);
     expect(sample.sticks.right?.y).toBe(-1);
     expect(sample.imuFrames).toHaveLength(3);
-    expect(sample.imuFrames[0].gyroscope.x).toBeCloseTo(61.03, 2);
-    expect(sample.imuFrames[0].gyroscope.y).toBeCloseTo(-30.515, 3);
-    expect(sample.imuFrames[0].gyroscope.z).toBeCloseTo(15.2575, 3);
+    expect(sample.imuFrames[0].gyroscope.x).toBeCloseTo(70.19, 2);
+    expect(sample.imuFrames[0].gyroscope.y).toBeCloseTo(-35.1, 2);
+    expect(sample.imuFrames[0].gyroscope.z).toBeCloseTo(17.55, 2);
   });
 
   it.each([
@@ -96,11 +96,51 @@ describe('Nintendo report decoder', () => {
       'joycon-left',
       'bluetooth',
       100,
-      calibration
+      {
+        sticks: calibration,
+        imu: {
+          accelerometer: {
+            x: { offset: 0, scale: 16384 },
+            y: { offset: 0, scale: 16384 },
+            z: { offset: 0, scale: 16384 },
+          },
+          gyroscope: {
+            x: { offset: 0, scale: 13371 },
+            y: { offset: 0, scale: 13371 },
+            z: { offset: 0, scale: 13371 },
+          },
+        },
+        sources: { sticks: { left: 'factory' }, imu: 'nominal' },
+      }
     );
 
     expect(sample.rawSticks.left).toEqual({ x: 2100, y: 2000 });
     expect(sample.sticks.left).toEqual({ x: 0, y: 0 });
+    expect(sample.calibration.sticks.left).toBe('factory');
+  });
+
+  it('removes calibrated gyro offset before converting to degrees per second', () => {
+    const bytes = new Uint8Array(48);
+    const view = new DataView(bytes.buffer);
+    view.setInt16(18, 100, true);
+    const sample = decodeStandardFullReport(0x30, view, 'joycon-left', 'bluetooth', 100, {
+      sticks: {},
+      imu: {
+        accelerometer: {
+          x: { offset: 0, scale: 16384 },
+          y: { offset: 0, scale: 16384 },
+          z: { offset: 0, scale: 16384 },
+        },
+        gyroscope: {
+          x: { offset: 100, scale: 13471 },
+          y: { offset: 0, scale: 13371 },
+          z: { offset: 0, scale: 13371 },
+        },
+      },
+      sources: { sticks: {}, imu: 'user' },
+    });
+    expect(sample.imuFrames[0].gyroscope.x).toBe(0);
+    expect(sample.calibration.imu).toBe('user');
   });
 
   it('allows scoped SPI settings access but blocks erase and firmware commands', () => {

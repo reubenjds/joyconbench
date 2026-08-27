@@ -1740,6 +1740,10 @@ h3 {
 .status-pass {
   color: var(--green);
 }
+.status-check-again {
+  color: #a85600;
+  background: #fff2cc;
+}
 .status-potential-issue {
   color: var(--red);
 }

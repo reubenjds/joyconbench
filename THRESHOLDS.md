@@ -1,29 +1,40 @@
 # Diagnostic threshold profile
 
-JoyConBench uses the versioned `research-1` profile to turn complete captures into `pass` or
-`potential-issue` results. These are practical, research-based reference ranges, not Nintendo service
-limits and not proof of a hardware fault. A test remains `inconclusive` when it does not capture
-enough usable input.
+JoyConBench uses the versioned `research-2` profile. The limits are conservative,
+research-based references rather than Nintendo service limits or proof of a hardware fault.
 
-## Reference values
+A valid concerning capture is labelled `check-again`. It becomes `potential-issue` only when the
+same test produces another valid concerning capture in the current controller session. A pass clears
+the pending concern. An incomplete or disturbed capture remains `inconclusive` and does not change
+confirmation history.
 
-| Test                 | Potential-issue reference                                                | Basis                                                                                                                                                                                                                                                                      |
-| -------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stick neutral        | Centre offset above `0.08`, or RMS jitter above `0.025`                  | Nintendo's documented stick parameters use a radial dead zone that reverse-engineering notes estimate at about 15% of physical travel for Joy-Con. JoyConBench uses a lower observed-motion boundary so it can reveal drift before the console dead zone masks it.         |
-| Circular range       | Less than 90% angular coverage, or minimum nominal reach below `0.45`    | Factory calibration examples show per-axis half-ranges around 1060–1296 raw counts. JoyConBench deliberately normalizes against the nominal 12-bit centre rather than reading device calibration, so a healthy physical edge is expected around 0.52–0.63 rather than 1.0. |
-| Release and snapback | Opposite-direction excursion above `0.10` after crossing the centre      | The release detector arms after `0.40` nominal travel and treats `0.12` as a centre return. The limit is slightly above the nominal equivalent of Nintendo's default radial dead zone.                                                                                     |
-| Gyroscope at rest    | Combined bias above `10°/s`, or combined axis noise above `2.5°/s`       | Joy-Con enables the LSM6DS3-family IMU at ±2000°/s. ST documents zero-rate offset as a material source of error; the limit is conservative because JoyConBench does not read per-device gyro calibration.                                                                  |
-| Gyroscope axes       | Any axis range below `50°/s` during the guided rotation                  | This is a functional response check, well below the configured ±2000°/s full scale and easy to exceed with a deliberate hand rotation.                                                                                                                                     |
-| Connection           | Rate below `52 Hz`, p95 interval above `30 ms`, or counter loss above 3% | Standard full reports arrive at roughly 60 frames/s, with reverse-engineering notes describing an update interval around 15 ms. The profile allows scheduling and Bluetooth variation while flagging sustained instability.                                                |
+## Reference values and quality gates
+
+| Test                 | Usable capture                                                                     | Check-again reference                                                             |
+| -------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Stick neutral        | Five seconds, at least 200 samples, no brief manual excursion                      | Median centre offset above `0.15`, or trimmed RMS jitter above `0.05`             |
+| Circular range       | At least 14 of 16 sectors and two full rotations                                   | Lower-sector calibrated reach below `0.75`, or directional imbalance above `0.35` |
+| Release and snapback | Four releases covering up, down, left, and right                                   | At least two opposite-direction excursions above `0.15`                           |
+| Gyroscope at rest    | Five seconds, at least 600 IMU frames, accelerometer p95 deviation at most `0.08g` | Calibrated combined bias above `10°/s`, or combined trimmed noise above `2.5°/s`  |
+| Gyroscope axes       | Separate four-second guided X, Y, and Z captures                                   | Any instructed axis range below `50°/s`                                           |
+| Connection           | Ten seconds while the page remains visible                                         | Browser arrival rate below `45 Hz`, or p95 interval above `40 ms`                 |
+
+Stick values use the active user calibration when present, then factory calibration, then nominal
+12-bit normalization. IMU values use the active user or factory offsets and scales, falling back to
+documented nominal values only when calibration cannot be read or validated. Reports include only
+the calibration source (`user`, `factory`, or `nominal`), never the calibration values.
+
+The first byte of a standard full input report is a fast-running controller timer. It is recorded as
+informational context but is not treated as a one-step packet counter and is not used to infer dropped
+reports. Connection classification uses monotonic WebHID arrival timestamps instead.
 
 ## Sources
 
-- [Nintendo Switch Reverse Engineering: SPI flash and calibration notes](https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/spi_flash_notes.md)
-- [Nintendo Switch Reverse Engineering: IMU subcommands and sensitivity](https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/bluetooth_hid_subcommands_notes.md)
-- [Nintendo Switch Reverse Engineering: controller and IMU report timing](https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/README.md)
-- [Joy-Con WebHID](https://github.com/tomayac/joy-con-webhid), whose implementation and report-rate observations are an interoperability reference
-- [STMicroelectronics LSM6DS3 product documentation](https://www.st.com/en/mems-and-sensors/lsm6ds3tr-c.html)
+- [Nintendo Switch Reverse Engineering: Bluetooth HID report format](https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/bluetooth_hid_notes.md)
+- [Nintendo Switch Reverse Engineering: SPI flash and calibration](https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/spi_flash_notes.md)
+- [Nintendo Switch Reverse Engineering: IMU conversion and calibration](https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/imu_sensor_notes.md)
+- [Linux Nintendo HID driver](https://codebrowser.dev/linux/linux/drivers/hid/hid-nintendo.c.html)
+- [Joy-Con WebHID](https://github.com/tomayac/joy-con-webhid)
 
-Thresholds should be revised as anonymized hardware fixtures cover more original left and right
-Joy-Con over Bluetooth. Every report records the threshold profile version and classification basis
-so future comparisons remain interpretable.
+The profile remains `research-based` until anonymized fixtures cover a representative set of healthy
+and faulty original left and right Joy-Con over Bluetooth.

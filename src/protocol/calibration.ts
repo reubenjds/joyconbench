@@ -1,5 +1,8 @@
 import type {
   ControllerKind,
+  CalibrationSource,
+  ControllerCalibration,
+  ImuCalibration,
   StickAxisCalibration,
   StickCalibration,
   StickCalibrationSet,
@@ -30,6 +33,12 @@ export const USER_MOTION_REGION = {
   length: 26,
 } as const;
 
+export const FACTORY_MOTION_REGION = {
+  name: 'factory-motion-calibration',
+  address: 0x6020,
+  length: 24,
+} as const;
+
 const USER_CALIBRATION_MAGIC = [0xb2, 0xa1] as const;
 
 export function decodeStickCalibration(data: Uint8Array, stick: StickId) {
@@ -42,29 +51,107 @@ export function decodeStickCalibration(data: Uint8Array, stick: StickId) {
   return isValidStickCalibration(calibration) ? calibration : null;
 }
 
+export interface ResolvedStickCalibration {
+  calibration: StickCalibrationSet;
+  sources: Partial<Record<StickId, CalibrationSource>>;
+}
+
+export interface ResolvedImuCalibration {
+  calibration: ImuCalibration;
+  source: CalibrationSource;
+}
+
+export const NOMINAL_IMU_CALIBRATION: ImuCalibration = {
+  accelerometer: {
+    x: { offset: 0, scale: 16384 },
+    y: { offset: 0, scale: 16384 },
+    z: { offset: 0, scale: 16384 },
+  },
+  gyroscope: {
+    x: { offset: 0, scale: 13371 },
+    y: { offset: 0, scale: 13371 },
+    z: { offset: 0, scale: 13371 },
+  },
+};
+
+export const NOMINAL_CONTROLLER_CALIBRATION: ControllerCalibration = {
+  sticks: {},
+  imu: NOMINAL_IMU_CALIBRATION,
+  sources: { sticks: {}, imu: 'nominal' },
+};
+
 export function resolveStickCalibration(
   kind: ControllerKind,
   factoryLeft: Uint8Array,
   factoryRight: Uint8Array,
   user: Uint8Array
-): StickCalibrationSet {
+): ResolvedStickCalibration {
   if (user.length !== USER_STICK_REGION.length) {
     throw new Error('User stick calibration is incomplete.');
   }
 
   const resolved: StickCalibrationSet = {};
+  const sources: Partial<Record<StickId, CalibrationSource>> = {};
   if (kind === 'joycon-left') {
-    resolved.left =
-      decodeUserStickCalibration(user, 'left') ??
-      decodeStickCalibration(factoryLeft, 'left') ??
-      undefined;
+    const userCalibration = decodeUserStickCalibration(user, 'left');
+    const factoryCalibration = decodeStickCalibration(factoryLeft, 'left');
+    resolved.left = userCalibration ?? factoryCalibration ?? undefined;
+    sources.left = userCalibration ? 'user' : factoryCalibration ? 'factory' : 'nominal';
   } else {
-    resolved.right =
-      decodeUserStickCalibration(user, 'right') ??
-      decodeStickCalibration(factoryRight, 'right') ??
-      undefined;
+    const userCalibration = decodeUserStickCalibration(user, 'right');
+    const factoryCalibration = decodeStickCalibration(factoryRight, 'right');
+    resolved.right = userCalibration ?? factoryCalibration ?? undefined;
+    sources.right = userCalibration ? 'user' : factoryCalibration ? 'factory' : 'nominal';
   }
-  return resolved;
+  return { calibration: resolved, sources };
+}
+
+export function decodeImuCalibration(data: Uint8Array): ImuCalibration | null {
+  if (data.length !== FACTORY_MOTION_REGION.length) {
+    throw new Error('Motion calibration must contain 24 bytes.');
+  }
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const axes = ['x', 'y', 'z'] as const;
+  const calibration: ImuCalibration = {
+    accelerometer: {
+      x: { offset: 0, scale: 0 },
+      y: { offset: 0, scale: 0 },
+      z: { offset: 0, scale: 0 },
+    },
+    gyroscope: {
+      x: { offset: 0, scale: 0 },
+      y: { offset: 0, scale: 0 },
+      z: { offset: 0, scale: 0 },
+    },
+  };
+  axes.forEach((axis, index) => {
+    calibration.accelerometer[axis] = {
+      offset: view.getInt16(index * 2, true),
+      scale: view.getInt16(6 + index * 2, true),
+    };
+    calibration.gyroscope[axis] = {
+      offset: view.getInt16(12 + index * 2, true),
+      scale: view.getInt16(18 + index * 2, true),
+    };
+  });
+  return isValidImuCalibration(calibration) ? calibration : null;
+}
+
+export function resolveImuCalibration(
+  factory: Uint8Array,
+  user: Uint8Array
+): ResolvedImuCalibration {
+  if (user.length !== USER_MOTION_REGION.length) {
+    throw new Error('User motion calibration is incomplete.');
+  }
+  const userCalibration =
+    user[0] === USER_CALIBRATION_MAGIC[0] && user[1] === USER_CALIBRATION_MAGIC[1]
+      ? decodeImuCalibration(user.slice(2))
+      : null;
+  if (userCalibration) return { calibration: userCalibration, source: 'user' };
+  const factoryCalibration = decodeImuCalibration(factory);
+  if (factoryCalibration) return { calibration: factoryCalibration, source: 'factory' };
+  return { calibration: NOMINAL_IMU_CALIBRATION, source: 'nominal' };
 }
 
 function decodeUserStickCalibration(data: Uint8Array, stick: StickId) {
@@ -121,5 +208,15 @@ function isValidStickCalibration(calibration: StickCalibration) {
       axis.minimum < axis.center &&
       axis.center < axis.maximum &&
       axis.maximum <= 0x0fff
+  );
+}
+
+function isValidImuCalibration(calibration: ImuCalibration) {
+  return (['accelerometer', 'gyroscope'] as const).every((sensor) =>
+    (['x', 'y', 'z'] as const).every((axis) => {
+      const value = calibration[sensor][axis];
+      const divisor = value.scale - value.offset;
+      return Number.isInteger(value.offset) && Number.isInteger(value.scale) && divisor >= 1024;
+    })
   );
 }

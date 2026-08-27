@@ -30,7 +30,7 @@ export function buildReport(
   createdAt = new Date()
 ): DiagnosticReport {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     applicationVersion: __APP_VERSION__,
     browser: browserSummary(),
     controller: {
@@ -54,7 +54,7 @@ export function reportSummary(report: DiagnosticReport) {
     'JoyConBench diagnostic summary',
     `Controller: ${report.controller.kind} (${report.controller.connection})`,
     `Created: ${report.createdAt}`,
-    `Results: ${counts.pass ?? 0} pass, ${counts['potential-issue'] ?? 0} potential issue, ${counts.inconclusive ?? 0} inconclusive, ${counts.skipped ?? 0} skipped`,
+    `Results: ${counts.pass ?? 0} pass, ${counts['check-again'] ?? 0} check again, ${counts['potential-issue'] ?? 0} potential issue, ${counts.inconclusive ?? 0} inconclusive, ${counts.skipped ?? 0} skipped`,
   ];
   if (notable.length) {
     lines.push('', 'Potential issues:');

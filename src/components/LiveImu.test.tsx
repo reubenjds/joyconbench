@@ -20,8 +20,9 @@ describe('LiveImu', () => {
         },
       ],
       battery: { percentage: 100, charging: false },
-      packetCounter: 1,
+      reportTimer: 1,
       connection: 'bluetooth',
+      calibration: { sticks: {}, imu: 'factory' },
     };
 
     render(<LiveImu samples={[sample]} />);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CaptureCountdown } from './components/CaptureCountdown';
 import { ControllerDiagram } from './components/ControllerDiagram';
 import { ControllerTools } from './components/ControllerTools';
@@ -13,7 +13,10 @@ import {
   analyzeRange,
   analyzeSnapback,
   analyzeStationaryImu,
+  applyIssueConfirmation,
   createConfirmationResult,
+  type ConfirmationState,
+  type MotionCaptures,
 } from './diagnostics/calculations';
 import { useController } from './hooks/useController';
 import { useDemoController } from './hooks/useDemoController';
@@ -57,7 +60,7 @@ const TESTS: TestDefinition[] = [
     number: '02',
     title: 'Circular range',
     short: 'Full travel',
-    description: 'Trace three rotations to spot restricted or uneven stick travel.',
+    description: 'Trace at least two slow rotations to spot restricted or uneven stick travel.',
     duration: 12000,
     action: 'Capture three rotations',
   },
@@ -84,9 +87,9 @@ const TESTS: TestDefinition[] = [
     number: '05',
     title: 'Gyroscope axes',
     short: 'Axis response',
-    description: 'Rotate around X, Y, and Z and confirm each gyroscope axis responds.',
-    duration: 10000,
-    action: 'Capture gyro axes',
+    description: 'Capture a separate guided rotation around X, Y, and Z.',
+    duration: 4000,
+    action: 'Capture X axis',
   },
   {
     id: 'packets',
@@ -148,6 +151,9 @@ export default function App() {
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [includeDeviceIds, setIncludeDeviceIds] = useState(false);
   const [copyState, setCopyState] = useState('Copy summary');
+  const [motionStep, setMotionStep] = useState(0);
+  const confirmationStatesRef = useRef(new Map<string, ConfirmationState>());
+  const motionCapturesRef = useRef<Partial<MotionCaptures>>({});
   const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
 
   const identity = controller.identity;
@@ -174,10 +180,29 @@ export default function App() {
     setRunComplete(false);
   }, [hardwareController.status, previewActive]);
 
+  useEffect(() => {
+    confirmationStatesRef.current.clear();
+    motionCapturesRef.current = {};
+    setMotionStep(0);
+    if (identity) {
+      setResults([]);
+      setSeenButtons(new Set());
+    }
+  }, [identity]);
+
   const addResults = (nextResults: DiagnosticResult[]) => {
+    const confirmedResults = nextResults.map((result) => {
+      const confirmed = applyIssueConfirmation(
+        result,
+        confirmationStatesRef.current.get(result.testId)
+      );
+      if (confirmed.state) confirmationStatesRef.current.set(result.testId, confirmed.state);
+      else confirmationStatesRef.current.delete(result.testId);
+      return confirmed.result;
+    });
     setResults((previous) => {
-      const ids = new Set(nextResults.map((result) => result.testId));
-      return [...previous.filter((result) => !ids.has(result.testId)), ...nextResults];
+      const ids = new Set(confirmedResults.map((result) => result.testId));
+      return [...previous.filter((result) => !ids.has(result.testId)), ...confirmedResults];
     });
   };
 
@@ -203,6 +228,10 @@ export default function App() {
     }
     setSelectedTest(test.id);
     setRunComplete(false);
+    if (test.id === 'motion') {
+      motionCapturesRef.current = {};
+      setMotionStep(0);
+    }
     setView('test');
   };
 
@@ -211,10 +240,31 @@ export default function App() {
     const definition = TESTS.find((test) => test.id === selectedTest)!;
     setRunning(true);
     setRunComplete(false);
-    const samples = await controller.capture(definition.duration);
-    addResults(analyzeCapture(selectedTest, samples, activeSticks));
-    setRunning(false);
-    setRunComplete(true);
+    let pageStayedVisible = document.visibilityState === 'visible';
+    const trackVisibility = () => {
+      if (document.visibilityState !== 'visible') pageStayedVisible = false;
+    };
+    document.addEventListener('visibilitychange', trackVisibility);
+    try {
+      const samples = await controller.capture(definition.duration);
+      if (selectedTest === 'motion') {
+        const axis = (['x', 'y', 'z'] as const)[motionStep];
+        motionCapturesRef.current[axis] = samples;
+        if (motionStep < 2) {
+          setMotionStep((step) => step + 1);
+          return;
+        }
+        addResults([analyzeMotion(motionCapturesRef.current as MotionCaptures)]);
+        motionCapturesRef.current = {};
+        setMotionStep(0);
+      } else {
+        addResults(analyzeCapture(selectedTest, samples, activeSticks, pageStayedVisible));
+      }
+      setRunComplete(true);
+    } finally {
+      document.removeEventListener('visibilitychange', trackVisibility);
+      setRunning(false);
+    }
   };
 
   const saveButtonCheck = () => {
@@ -223,21 +273,23 @@ export default function App() {
       {
         testId: 'buttons',
         title: 'Button response',
-        status: missed.length ? 'potential-issue' : 'pass',
+        status: missed.length ? 'check-again' : 'pass',
         measurements: {
           expectedButtons: requiredButtons.length,
           observedButtons: requiredButtons.length - missed.length,
           unobserved: missed.map((button) => BUTTON_LABELS[button]).join(', ') || 'None',
+          ...(missed.length ? { findingCode: `unresponsive-${missed.sort().join('-')}` } : {}),
         },
         explanation: 'Each applicable button was checked for an input response.',
         interpretation: missed.length
-          ? 'One or more buttons were not observed during this checklist.'
+          ? 'One or more buttons were not observed. Check them again before treating them as an issue.'
           : 'Every applicable button produced an input event.',
         recommendations: missed.length
-          ? ['Press each unobserved button again.', 'Reconnect and retest before repair.']
+          ? ['Retry this test.', 'Press each unobserved button deliberately.']
           : ['No action is suggested by this check.'],
       },
     ]);
+    if (missed.length) setSeenButtons(new Set());
   };
 
   const startAgain = async () => {
@@ -249,6 +301,30 @@ export default function App() {
     setRunComplete(false);
     setRunning(false);
     setIncludeDeviceIds(false);
+    confirmationStatesRef.current.clear();
+    motionCapturesRef.current = {};
+    setMotionStep(0);
+  };
+
+  const retryResult = (result: DiagnosticResult) => {
+    setRunComplete(false);
+    if (result.testId === 'buttons') {
+      setSeenButtons(new Set());
+      setView('bench');
+      return;
+    }
+    if (result.testId === 'led' || result.testId === 'rumble') {
+      setView('outputs');
+      return;
+    }
+    const testId = captureTestForResult(result.testId);
+    if (!testId) return;
+    setSelectedTest(testId);
+    if (testId === 'motion') {
+      motionCapturesRef.current = {};
+      setMotionStep(0);
+    }
+    setView('test');
   };
 
   const copySummary = async () => {
@@ -365,6 +441,7 @@ export default function App() {
             samples={controller.samplesRef.current}
             running={running}
             complete={runComplete}
+            motionStep={motionStep}
             onRun={runSelectedTest}
             onBack={() => setView('bench')}
           />
@@ -400,7 +477,7 @@ export default function App() {
 
         {identity && view === 'results' && (
           <PageFrame eyebrow="Your bench notes" title="Results so far">
-            <ResultsView results={results} />
+            <ResultsView results={results} onRetry={retryResult} />
             <div className="page-actions no-print">
               <Button className="button-secondary" onClick={() => setView('bench')}>
                 Run another test
@@ -615,7 +692,6 @@ function BenchView({
   onChooseTest: (test: TestDefinition) => void;
   onResults: () => void;
 }) {
-  const resultIds = new Set(results.map((result) => result.testId));
   const buttonResult = results.find((result) => result.testId === 'buttons');
   return (
     <>
@@ -679,7 +755,9 @@ function BenchView({
             <Button className="button-secondary" onClick={onClearButtons}>
               Clear
             </Button>
-            <Button onClick={onSaveButtons}>Save button result</Button>
+            <Button onClick={onSaveButtons} disabled={seenButtons.size === 0}>
+              Save button result
+            </Button>
           </div>
         </Panel>
       </div>
@@ -695,7 +773,8 @@ function BenchView({
         </div>
         <div className="test-card-grid">
           {TESTS.map((test) => {
-            const done = testResultIsPresent(test.id, resultIds);
+            const savedResult = resultForTest(test.id, results);
+            const done = savedResult !== undefined;
             return (
               <article key={test.id} className={`test-card ${test.featured ? 'featured' : ''}`}>
                 <div className="test-number">{test.number}</div>
@@ -704,7 +783,11 @@ function BenchView({
                   <h3>{test.title}</h3>
                   <p>{test.description}</p>
                 </div>
-                {done && <StatusLabel status="pass">Done</StatusLabel>}
+                {savedResult && (
+                  <StatusLabel status={savedResult.status}>
+                    {resultLabel(savedResult.status)}
+                  </StatusLabel>
+                )}
                 <Button onClick={() => onChooseTest(test)}>
                   {done ? 'Run again' : test.featured ? 'Check drift now' : 'Choose test'}
                 </Button>
@@ -723,6 +806,7 @@ function TestView({
   samples,
   running,
   complete,
+  motionStep,
   onRun,
   onBack,
 }: {
@@ -731,20 +815,34 @@ function TestView({
   samples: ControllerSample[];
   running: boolean;
   complete: boolean;
+  motionStep: number;
   onRun: () => void;
   onBack: () => void;
 }) {
   const isImuTest = test.id === 'stationary' || test.id === 'motion';
+  const motionAxis = (['X', 'Y', 'Z'] as const)[motionStep];
+  const instruction =
+    test.id === 'motion'
+      ? `Rotate the controller around its ${motionAxis} axis.`
+      : instructionTitle(test.id);
+  const action =
+    test.id === 'motion'
+      ? complete
+        ? 'Run all axes again'
+        : `Capture ${motionAxis} axis`
+      : complete
+        ? 'Run it again'
+        : test.action;
   return (
     <PageFrame eyebrow={`Test ${test.number} · ${test.short}`} title={test.title}>
       <div className="capture-instruction">
         <CaptureCountdown durationMs={test.duration} running={running} complete={complete} />
         <div>
-          <h2>{instructionTitle(test.id)}</h2>
+          <h2>{instruction}</h2>
           <p>{test.description}</p>
         </div>
         <Button onClick={onRun} disabled={running}>
-          {running ? 'Capturing…' : complete ? 'Run it again' : test.action}
+          {running ? 'Capturing…' : action}
         </Button>
       </div>
       {complete && (
@@ -780,7 +878,6 @@ function OutputView({
   onBack: () => void;
 }) {
   const [tested, setTested] = useState<'led' | 'rumble' | null>(null);
-  const resultIds = new Set(results.map((result) => result.testId));
   const runLed = async () => {
     await adapter.setPlayerLeds(0x10);
     await new Promise((resolve) => window.setTimeout(resolve, 500));
@@ -791,11 +888,16 @@ function OutputView({
     await adapter.rumble(300);
     setTested('rumble');
   };
+  const recordResult = (result: DiagnosticResult) => {
+    onResult(result);
+    setTested(null);
+  };
   return (
     <PageFrame eyebrow="Optional output checks" title="Lights and rumble">
       <div className="output-grid">
         {(['led', 'rumble'] as const).map((test) => {
-          const done = resultIds.has(test);
+          const recorded = results.find((result) => result.testId === test);
+          const done = recorded?.status === 'pass';
           const title = test === 'led' ? 'Player LED' : 'Rumble motor';
           return (
             <Panel key={test} className={test === 'led' ? 'color-blue' : 'color-red'}>
@@ -812,22 +914,20 @@ function OutputView({
               {!done && tested === test && (
                 <div className="confirmation-row">
                   <strong>Did it work?</strong>
-                  <Button onClick={() => onResult(createConfirmationResult(test, title, 'yes'))}>
+                  <Button
+                    onClick={() => recordResult(createConfirmationResult(test, title, 'yes'))}
+                  >
                     Yep!
                   </Button>
                   <Button
                     className="button-secondary"
-                    onClick={() => onResult(createConfirmationResult(test, title, 'no'))}
+                    onClick={() => recordResult(createConfirmationResult(test, title, 'no'))}
                   >
                     Nope
                   </Button>
                 </div>
               )}
-              {done && (
-                <StatusLabel status={results.find((result) => result.testId === test)!.status}>
-                  Recorded
-                </StatusLabel>
-              )}
+              {recorded && <StatusLabel status={recorded.status}>Recorded</StatusLabel>}
             </Panel>
           );
         })}
@@ -841,8 +941,15 @@ function OutputView({
   );
 }
 
-function ResultsView({ results }: { results: DiagnosticResult[] }) {
+function ResultsView({
+  results,
+  onRetry,
+}: {
+  results: DiagnosticResult[];
+  onRetry: (result: DiagnosticResult) => void;
+}) {
   const issueCount = results.filter((result) => result.status === 'potential-issue').length;
+  const checkAgainCount = results.filter((result) => result.status === 'check-again').length;
   if (!results.length)
     return (
       <Panel className="empty-results">
@@ -858,8 +965,8 @@ function ResultsView({ results }: { results: DiagnosticResult[] }) {
         <div>
           <h2>{issueCount === 1 ? 'potential issue' : 'potential issues'}</h2>
           <p>
-            Research-based reference ranges produce practical conclusions. Inconclusive means the
-            test did not capture enough usable input.
+            Only findings repeated in two valid captures count as issues. {checkAgainCount} result
+            {checkAgainCount === 1 ? '' : 's'} currently need another check.
           </p>
         </div>
       </Panel>
@@ -889,6 +996,13 @@ function ResultsView({ results }: { results: DiagnosticResult[] }) {
                 <li key={item}>{item}</li>
               ))}
             </ul>
+            {(result.status === 'check-again' ||
+              result.status === 'inconclusive' ||
+              result.status === 'potential-issue') && (
+              <Button className="button-secondary no-print" onClick={() => onRetry(result)}>
+                Retry test
+              </Button>
+            )}
           </Panel>
         ))}
       </div>
@@ -1024,8 +1138,8 @@ function ProtocolLab({
           <dd>{sampleCount}</dd>
         </div>
         <div>
-          <dt>Packet counter</dt>
-          <dd>{latest?.packetCounter ?? 'N/A'}</dd>
+          <dt>Report timer</dt>
+          <dd>{latest?.reportTimer ?? 'N/A'}</dd>
         </div>
         <div>
           <dt>IMU frames/report</dt>
@@ -1036,13 +1150,17 @@ function ProtocolLab({
   );
 }
 
-function analyzeCapture(id: CaptureTestId, samples: ControllerSample[], sticks: StickId[]) {
+function analyzeCapture(
+  id: Exclude<CaptureTestId, 'motion'>,
+  samples: ControllerSample[],
+  sticks: StickId[],
+  pageStayedVisible: boolean
+) {
   if (id === 'drift') return sticks.map((stick) => analyzeNeutral(samples, stick));
   if (id === 'range') return sticks.map((stick) => analyzeRange(samples, stick));
   if (id === 'snapback') return sticks.map((stick) => analyzeSnapback(samples, stick));
   if (id === 'stationary') return [analyzeStationaryImu(samples)];
-  if (id === 'motion') return [analyzeMotion(samples)];
-  return [analyzePackets(samples)];
+  return [analyzePackets(samples, pageStayedVisible)];
 }
 
 function applicableButtons(identity: ControllerIdentity): ControllerButton[] {
@@ -1090,9 +1208,35 @@ function testResultIsPresent(id: TestDefinition['id'], resultIds: Set<string>) {
   return resultIds.has('led') || resultIds.has('rumble');
 }
 
+function resultForTest(id: TestDefinition['id'], results: DiagnosticResult[]) {
+  const matches = results.filter((result) => {
+    const ids = new Set([result.testId]);
+    return testResultIsPresent(id, ids);
+  });
+  const priority: Record<DiagnosticResult['status'], number> = {
+    'potential-issue': 4,
+    'check-again': 3,
+    inconclusive: 2,
+    skipped: 1,
+    pass: 0,
+  };
+  return matches.sort((a, b) => priority[b.status] - priority[a.status])[0];
+}
+
 function resultLabel(status: DiagnosticResult['status']) {
   if (status === 'potential-issue') return 'Potential issue';
+  if (status === 'check-again') return 'Check again';
   return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function captureTestForResult(testId: string): CaptureTestId | null {
+  if (testId.startsWith('stick-neutral-')) return 'drift';
+  if (testId.startsWith('stick-range-')) return 'range';
+  if (testId.startsWith('stick-snapback-')) return 'snapback';
+  if (testId === 'imu-stationary') return 'stationary';
+  if (testId === 'imu-motion') return 'motion';
+  if (testId === 'packet-stability') return 'packets';
+  return null;
 }
 
 function formatBattery(battery: ControllerSample['battery']) {

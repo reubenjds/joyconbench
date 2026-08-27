@@ -21,6 +21,7 @@ describe('privacy-safe reports', () => {
     expect(json).not.toMatch(/serial|macAddress/i);
     expect(json).not.toContain('"samples"');
     expect(report.privacy.identifyingValuesIncluded).toBe(false);
+    expect(report.schemaVersion).toBe(2);
     expect(reportSummary(report)).toContain('No raw controller data is included');
   });
 });

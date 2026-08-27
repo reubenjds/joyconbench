@@ -9,6 +9,7 @@ export interface BatteryStatus {
   charging: boolean;
 }
 export type StickId = 'left' | 'right';
+export type CalibrationSource = 'user' | 'factory' | 'nominal';
 
 export type Vector2 = { x: number; y: number };
 export type Vector3 = { x: number; y: number; z: number };
@@ -25,6 +26,27 @@ export interface StickCalibration {
 }
 
 export type StickCalibrationSet = Partial<Record<StickId, StickCalibration>>;
+
+export interface ImuAxisCalibration {
+  offset: number;
+  scale: number;
+}
+
+export interface ImuCalibration {
+  accelerometer: Record<keyof Vector3, ImuAxisCalibration>;
+  gyroscope: Record<keyof Vector3, ImuAxisCalibration>;
+}
+
+export interface SampleCalibration {
+  sticks: Partial<Record<StickId, CalibrationSource>>;
+  imu: CalibrationSource;
+}
+
+export interface ControllerCalibration {
+  sticks: StickCalibrationSet;
+  imu: ImuCalibration;
+  sources: SampleCalibration;
+}
 
 export type ControllerButton =
   | 'a'
@@ -65,8 +87,9 @@ export interface ControllerSample {
   rawSticks: Partial<Record<StickId, Vector2>>;
   imuFrames: readonly [ImuFrame, ImuFrame, ImuFrame];
   battery: BatteryStatus;
-  packetCounter: number;
+  reportTimer: number;
   connection: ConnectionKind;
+  calibration: SampleCalibration;
 }
 
 export interface ControllerIdentity {
@@ -98,7 +121,8 @@ export interface ControllerSettingsBackup {
 
 export type SettingsProgress = (completed: number, total: number, label: string) => void;
 
-export type DiagnosticStatus = 'pass' | 'potential-issue' | 'inconclusive' | 'skipped';
+export type DiagnosticStatus =
+  'pass' | 'check-again' | 'potential-issue' | 'inconclusive' | 'skipped';
 
 export interface DiagnosticResult {
   testId: string;
@@ -111,7 +135,7 @@ export interface DiagnosticResult {
 }
 
 export interface DiagnosticReport {
-  schemaVersion: 1;
+  schemaVersion: 2;
   applicationVersion: string;
   browser: { name: string; platform: string };
   controller: {

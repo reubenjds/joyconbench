@@ -209,7 +209,8 @@ function makeDemoSample(timestamp: number, index: number): ControllerSample {
     },
     imuFrames,
     battery: { percentage: 100, charging: false },
-    packetCounter: index % 16,
+    reportTimer: (index * 3) & 0xff,
     connection: 'bluetooth',
+    calibration: { sticks: { left: 'nominal' }, imu: 'nominal' },
   };
 }

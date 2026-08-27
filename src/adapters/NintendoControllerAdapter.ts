@@ -1,4 +1,10 @@
-import { resolveStickCalibration } from '../protocol/calibration';
+import {
+  FACTORY_MOTION_REGION,
+  NOMINAL_CONTROLLER_CALIBRATION,
+  USER_MOTION_REGION,
+  resolveImuCalibration,
+  resolveStickCalibration,
+} from '../protocol/calibration';
 import {
   FACTORY_LEFT_STICK_REGION,
   FACTORY_RIGHT_STICK_REGION,
@@ -19,7 +25,7 @@ import {
   type ControllerAdapter,
   type ControllerIdentity,
   type SampleListener,
-  type StickCalibrationSet,
+  type ControllerCalibration,
 } from '../types/controller';
 import type {
   ControllerColors,
@@ -43,7 +49,7 @@ import {
 
 export class NintendoControllerAdapter implements ControllerAdapter {
   private identity: ControllerIdentity | null = null;
-  private stickCalibration: StickCalibrationSet = {};
+  private calibration: ControllerCalibration = structuredClone(NOMINAL_CONTROLLER_CALIBRATION);
   private readonly sampleListeners = new Set<SampleListener>();
   private unsubscribeTransport: (() => void) | null = null;
 
@@ -75,7 +81,7 @@ export class NintendoControllerAdapter implements ControllerAdapter {
           this.identity.kind,
           this.identity.connection,
           performance.now(),
-          this.stickCalibration
+          this.calibration
         );
         for (const listener of this.sampleListeners) listener(sample);
       } catch {
@@ -92,7 +98,7 @@ export class NintendoControllerAdapter implements ControllerAdapter {
       await this.transport.close();
     } finally {
       this.identity = null;
-      this.stickCalibration = {};
+      this.calibration = structuredClone(NOMINAL_CONTROLLER_CALIBRATION);
     }
   }
 
@@ -104,10 +110,10 @@ export class NintendoControllerAdapter implements ControllerAdapter {
       await this.transport.sendSubcommand(SUBCOMMAND_ENABLE_VIBRATION, [0x01]);
       await firstSample.promise;
       try {
-        await this.loadStickCalibration();
+        await this.loadCalibration();
       } catch {
         // Valid input remains available with nominal normalization if calibration cannot be read.
-        this.stickCalibration = {};
+        this.calibration = structuredClone(NOMINAL_CONTROLLER_CALIBRATION);
       }
     } catch (error) {
       firstSample.cancel();
@@ -223,19 +229,27 @@ export class NintendoControllerAdapter implements ControllerAdapter {
     }
   }
 
-  private async loadStickCalibration() {
+  private async loadCalibration() {
     if (!this.identity) throw new Error('No controller is connected.');
-    const [factoryLeft, factoryRight, user] = await Promise.all([
+    const [factoryLeft, factoryRight, userStick, factoryImu, userImu] = await Promise.all([
       this.readRegion(FACTORY_LEFT_STICK_REGION.address, FACTORY_LEFT_STICK_REGION.length),
       this.readRegion(FACTORY_RIGHT_STICK_REGION.address, FACTORY_RIGHT_STICK_REGION.length),
       this.readRegion(USER_STICK_REGION.address, USER_STICK_REGION.length),
+      this.readRegion(FACTORY_MOTION_REGION.address, FACTORY_MOTION_REGION.length),
+      this.readRegion(USER_MOTION_REGION.address, USER_MOTION_REGION.length),
     ]);
-    this.stickCalibration = resolveStickCalibration(
+    const sticks = resolveStickCalibration(
       this.identity.kind,
       factoryLeft,
       factoryRight,
-      user
+      userStick
     );
+    const imu = resolveImuCalibration(factoryImu, userImu);
+    this.calibration = {
+      sticks: sticks.calibration,
+      imu: imu.calibration,
+      sources: { sticks: sticks.sources, imu: imu.source },
+    };
   }
 
   private createSampleWaiter(timeoutMs: number) {

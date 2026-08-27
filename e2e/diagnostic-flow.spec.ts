@@ -7,6 +7,7 @@ test.beforeEach(async ({ page }) => {
       const view = new DataView(bytes.buffer);
       bytes[0] = Math.floor(performance.now() / 16) & 0xff;
       bytes[1] = 0x80;
+      bytes[2] = 0x08;
       bytes[5] = 0x00;
       bytes[6] = 0x08;
       bytes[7] = 0x80;
@@ -189,7 +190,9 @@ test('connects a mocked Joy-Con into colours before the test playground', async 
     .getByRole('navigation', { name: 'Controller workspaces' })
     .getByRole('button', { name: /Results/ })
     .click();
-  await expect(page.getByText(/Research-based reference ranges produce/i)).toBeVisible();
+  await expect(
+    page.getByText(/Only findings repeated in two valid captures count as issues/i)
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Finish report' }).click();
   await expect(page.getByRole('heading', { name: 'Your report is finished' })).toBeVisible();
   await page.getByRole('button', { name: /Start again/ }).click();
@@ -206,6 +209,30 @@ test('connects a mocked Joy-Con into colours before the test playground', async 
   await expect(page.getByRole('heading', { name: 'Left stick' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Right stick' })).toHaveCount(0);
   expect(externalRequests).toEqual([]);
+});
+
+test('asks for a retry before counting a concerning capture as an issue', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Connect controller' }).click();
+  await page.getByRole('button', { name: 'Open controller picker' }).click();
+  await page
+    .getByRole('navigation', { name: 'Controller workspaces' })
+    .getByRole('button', { name: 'Tests' })
+    .click();
+
+  const gyroCard = page.getByRole('article').filter({ hasText: 'Gyroscope at rest' });
+  await gyroCard.getByRole('button').click();
+  await page.getByRole('button', { name: 'Capture stationary gyro' }).click();
+  await expect(page.getByText('Result saved.')).toBeVisible({ timeout: 7000 });
+  await page.getByRole('button', { name: /Back to test suite/ }).click();
+  await page.getByRole('button', { name: /View 1 result/ }).click();
+
+  await expect(page.getByText('Check again', { exact: true })).toBeVisible();
+  const summary = page.locator('.result-summary');
+  await expect(summary.locator('.summary-number')).toHaveText('0');
+  await expect(summary.getByRole('heading', { name: 'potential issues' })).toBeVisible();
+  await page.getByRole('button', { name: 'Retry test' }).click();
+  await expect(page.getByRole('heading', { name: 'Gyroscope at rest' })).toBeVisible();
 });
 
 test('informational layout has no horizontal overflow at a narrow width', async ({ page }) => {
