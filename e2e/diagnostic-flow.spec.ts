@@ -229,6 +229,24 @@ test('informational layout has no horizontal overflow at a narrow width', async 
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
 });
 
+test('returns to connection guidance when the active Joy-Con disconnects', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Connect controller' }).click();
+  await page.getByRole('button', { name: 'Open controller picker' }).click();
+  await expect(page.getByText('Right Joy-Con').first()).toBeVisible();
+
+  await page.evaluate(async () => {
+    const devices = await navigator.hid!.getDevices();
+    const connected = devices.find((device) => device.productId === 0x2007)!;
+    const event = new Event('disconnect');
+    Object.defineProperty(event, 'device', { value: connected });
+    navigator.hid!.dispatchEvent(event);
+  });
+
+  await expect(page.getByRole('heading', { name: /Test your controller/i })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText(/controller disconnected/i);
+});
+
 test('connected workbench layouts have no horizontal overflow at a narrow width', async ({
   page,
 }) => {

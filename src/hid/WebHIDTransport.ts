@@ -59,22 +59,25 @@ export class WebHIDTransport {
     ) {
       throw new Error('This controller is not supported by JoyConBench v1.');
     }
+    if (this.currentDevice && this.currentDevice !== selected) await this.close();
     this.currentDevice = selected;
     if (!selected.opened) await selected.open();
+    selected.removeEventListener('inputreport', this.handleInputReport);
     selected.addEventListener('inputreport', this.handleInputReport);
     return selected;
   }
 
   async close() {
     if (!this.currentDevice) return;
-    this.currentDevice.removeEventListener('inputreport', this.handleInputReport);
-    if (this.currentDevice.opened) await this.currentDevice.close();
+    const device = this.currentDevice;
+    device.removeEventListener('inputreport', this.handleInputReport);
     this.currentDevice = null;
     if (this.pendingReply) {
       window.clearTimeout(this.pendingReply.timeout);
       this.pendingReply.reject(new Error('Controller disconnected during a settings command.'));
       this.pendingReply = null;
     }
+    if (device.opened) await device.close();
   }
 
   connectionKind(): ConnectionKind {

@@ -11,7 +11,7 @@ import type {
 export type ConnectionStatus = 'idle' | 'connecting' | 'ready' | 'disconnected' | 'error';
 
 export function useController() {
-  const adapterRef = useRef<ControllerAdapter>(new NintendoControllerAdapter());
+  const adapterRef = useRef(new NintendoControllerAdapter());
   const samplesRef = useRef<ControllerSample[]>([]);
   const connectionEpochRef = useRef(0);
   const [latestSample, setLatestSample] = useState<ControllerSample | null>(null);
@@ -29,7 +29,19 @@ export function useController() {
       const sample = samplesRef.current.at(-1);
       if (sample) setLatestSample(sample);
     }, 33);
-    const handleDisconnect = () => setStatus('disconnected');
+    const handleDisconnect = (event: HIDConnectionEvent) => {
+      if (!adapterRef.current.ownsDevice(event.device)) return;
+      connectionEpochRef.current += 1;
+      samplesRef.current = [];
+      setLatestSample(null);
+      setIdentity(null);
+      setColors(null);
+      setError('The controller disconnected. Reconnect it to continue.');
+      setStatus('disconnected');
+      void adapterRef.current.disconnect().catch(() => {
+        // The device has already gone away; local state is cleared regardless.
+      });
+    };
     navigator.hid?.addEventListener('disconnect', handleDisconnect);
     return () => {
       unsubscribe();
@@ -46,6 +58,9 @@ export function useController() {
     try {
       const connectedIdentity = await adapterRef.current.connect();
       await adapterRef.current.initialize();
+      if (connectionEpochRef.current !== connectionEpoch) {
+        throw new Error('The controller connection was cancelled.');
+      }
       setIdentity(connectedIdentity);
       setStatus('ready');
       void adapterRef.current
@@ -58,6 +73,17 @@ export function useController() {
         });
       return connectedIdentity;
     } catch (reason) {
+      if (connectionEpochRef.current !== connectionEpoch) throw reason;
+      connectionEpochRef.current += 1;
+      try {
+        await adapterRef.current.disconnect();
+      } catch {
+        // Preserve the original connection error while still attempting cleanup.
+      }
+      samplesRef.current = [];
+      setLatestSample(null);
+      setIdentity(null);
+      setColors(null);
       const message =
         reason instanceof Error ? reason.message : 'The controller could not be opened.';
       setError(message);
@@ -83,7 +109,7 @@ export function useController() {
   }, []);
 
   return {
-    adapter: adapterRef.current,
+    adapter: adapterRef.current as ControllerAdapter,
     capture,
     colors,
     connect,

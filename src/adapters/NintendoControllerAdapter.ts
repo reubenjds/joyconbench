@@ -49,7 +49,13 @@ export class NintendoControllerAdapter implements ControllerAdapter {
 
   constructor(private readonly transport = new WebHIDTransport()) {}
 
+  ownsDevice(device: HIDDevice) {
+    return this.transport.device === device;
+  }
+
   async connect(device?: HIDDevice) {
+    this.unsubscribeTransport?.();
+    this.unsubscribeTransport = null;
     const opened = await this.transport.open(device);
     const kind = controllerKindFromProductId(opened.productId);
     if (!kind) throw new Error('Unsupported Nintendo controller.');
@@ -82,9 +88,12 @@ export class NintendoControllerAdapter implements ControllerAdapter {
   async disconnect() {
     this.unsubscribeTransport?.();
     this.unsubscribeTransport = null;
-    await this.transport.close();
-    this.identity = null;
-    this.stickCalibration = {};
+    try {
+      await this.transport.close();
+    } finally {
+      this.identity = null;
+      this.stickCalibration = {};
+    }
   }
 
   async initialize() {

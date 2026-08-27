@@ -67,4 +67,17 @@ describe('WebHID settings transactions', () => {
       /outside documented/i
     );
   });
+
+  it('clears the selected device even when the browser close call fails', async () => {
+    const transport = new WebHIDTransport();
+    const device = new SpiDevice();
+    device.close = async () => {
+      throw new Error('Bluetooth close failed.');
+    };
+    await transport.open(device as unknown as HIDDevice);
+
+    await expect(transport.close()).rejects.toThrow(/close failed/i);
+
+    expect(transport.device).toBeNull();
+  });
 });

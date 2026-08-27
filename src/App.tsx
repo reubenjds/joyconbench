@@ -166,6 +166,14 @@ export default function App() {
     if (pressed.length) setSeenButtons((previous) => new Set([...previous, ...pressed]));
   }, [controller.latestSample, identity, view]);
 
+  useEffect(() => {
+    if (previewActive || hardwareController.status !== 'disconnected') return;
+    setView('connect');
+    setSelectedTest(null);
+    setRunning(false);
+    setRunComplete(false);
+  }, [hardwareController.status, previewActive]);
+
   const addResults = (nextResults: DiagnosticResult[]) => {
     setResults((previous) => {
       const ids = new Set(nextResults.map((result) => result.testId));
