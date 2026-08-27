@@ -34,6 +34,9 @@ const RETAIL_COLORS: ReadonlyArray<{ name: string; colors: ControllerColors }> =
   { name: 'Pastel green', colors: { body: '#bcffc8', buttons: '#2d322d' } },
 ];
 
+const CRITICAL_BATTERY_MESSAGE =
+  'Persistent tools are paused because the controller reports a critical battery level.';
+
 export function ControllerTools({
   adapter,
   identity,
@@ -87,6 +90,11 @@ export function ControllerTools({
 
   const saveColors = async () => {
     setConfirmColor(false);
+    if (batteryCritical) {
+      setStatusTone('error');
+      setMessage(CRITICAL_BATTERY_MESSAGE);
+      return;
+    }
     await runTool('Writing and verifying colours…', async () => {
       await adapter.writeColors(colors);
       onColorsChange(colors);
@@ -147,6 +155,11 @@ export function ControllerTools({
   const restoreBackup = async () => {
     if (!pendingBackup) return;
     setConfirmRestore(false);
+    if (batteryCritical) {
+      setStatusTone('error');
+      setMessage(CRITICAL_BATTERY_MESSAGE);
+      return;
+    }
     await runTool('Restoring documented settings…', async () => {
       await adapter.restoreSettings(pendingBackup, (completed, total, label) => {
         setProgress(Math.round((completed / total) * 100));
@@ -182,7 +195,7 @@ export function ControllerTools({
     <>
       {batteryCritical && (
         <div className="tool-warning" role="alert">
-          Persistent tools are paused because the controller reports a critical battery level.
+          {CRITICAL_BATTERY_MESSAGE}
         </div>
       )}
       <ToolStatus tone={statusTone} busy={busy} progress={progress} message={message} />
@@ -310,7 +323,9 @@ export function ControllerTools({
           <Button className="button-secondary" onClick={() => setConfirmColor(false)}>
             Cancel
           </Button>
-          <Button onClick={saveColors}>Write and verify</Button>
+          <Button onClick={saveColors} disabled={busy || batteryCritical}>
+            Write and verify
+          </Button>
         </div>
       </Modal>
 
@@ -332,7 +347,9 @@ export function ControllerTools({
           <Button className="button-secondary" onClick={() => setConfirmRestore(false)}>
             Cancel
           </Button>
-          <Button onClick={restoreBackup}>Restore and verify</Button>
+          <Button onClick={restoreBackup} disabled={busy || batteryCritical}>
+            Restore and verify
+          </Button>
         </div>
       </Modal>
     </>
