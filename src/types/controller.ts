@@ -152,7 +152,33 @@ export interface DiagnosticReport {
 export type SampleListener = (sample: ControllerSample) => void;
 export type Unsubscribe = () => void;
 
+export interface IrFrame {
+  timestamp: number;
+  sequence: number;
+  width: 80;
+  height: 60;
+  pixels: Uint8Array;
+}
+
+export interface IrStreamStats {
+  receivedPackets: number;
+  completedFrames: number;
+  droppedFragments: number;
+  malformedPackets: number;
+  framesPerSecond: number;
+  lastFrameAt: number | null;
+}
+
+export type IrFrameListener = (frame: IrFrame, stats: IrStreamStats) => void;
+
+export interface IrCameraCapability {
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  subscribe(listener: IrFrameListener): Unsubscribe;
+}
+
 export interface ControllerAdapter {
+  readonly irCamera?: IrCameraCapability;
   connect(device?: HIDDevice): Promise<ControllerIdentity>;
   disconnect(): Promise<void>;
   initialize(): Promise<void>;

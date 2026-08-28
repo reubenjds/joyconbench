@@ -27,6 +27,14 @@ describe('JoyConBench application shell', () => {
     expect(screen.getByText('Preview Left Joy-Con')).toBeInTheDocument();
     expect(screen.getByText('Local preview data')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Colours' })).toHaveAttribute('aria-current', 'page');
+    fireEvent.click(screen.getByRole('button', { name: 'IR Camera' }));
+    expect(screen.getByRole('button', { name: 'IR Camera' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    expect(
+      screen.getByRole('heading', { name: 'A right Joy-Con is required' })
+    ).toBeInTheDocument();
   });
 
   it('presents the landing benefits as a concise ordered list', () => {

@@ -7,11 +7,13 @@ import {
 import {
   INPUT_REPORT_SUBCOMMAND_REPLY,
   OUTPUT_REPORT_RUMBLE,
+  OUTPUT_REPORT_MCU,
   OUTPUT_REPORT_SUBCOMMAND,
   MAX_SPI_TRANSFER_BYTES,
   SUBCOMMAND_SPI_READ,
   SUBCOMMAND_SPI_WRITE,
   buildRumblePacket,
+  buildMcuPacket,
   buildSubcommandPacket,
 } from '../protocol/nintendo';
 import { isDocumentedSettingsRange } from '../protocol/settings';
@@ -89,6 +91,18 @@ export class WebHIDTransport {
     if (!this.currentDevice) throw new Error('No controller is connected.');
     const packet = buildSubcommandPacket(this.nextCounter(), subcommand, payload);
     await this.currentDevice.sendReport(OUTPUT_REPORT_SUBCOMMAND, packet);
+  }
+
+  async transactSubcommand(subcommand: number, payload: number[] = []) {
+    return this.sendSubcommandAndWait(subcommand, payload);
+  }
+
+  async sendMcuCommand(subcommand: number, payload: Uint8Array) {
+    if (!this.currentDevice) throw new Error('No controller is connected.');
+    await this.currentDevice.sendReport(
+      OUTPUT_REPORT_MCU,
+      buildMcuPacket(this.nextCounter(), subcommand, payload)
+    );
   }
 
   async readSpi(address: number, length: number) {

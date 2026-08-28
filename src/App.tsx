@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CaptureCountdown } from './components/CaptureCountdown';
 import { ControllerDiagram } from './components/ControllerDiagram';
 import { ControllerTools } from './components/ControllerTools';
+import { IrCameraTool } from './components/IrCameraTool';
 import { LiveImu } from './components/LiveImu';
 import { LiveJoysticks } from './components/LiveJoysticks';
 import { LivePlot } from './components/LivePlot';
@@ -30,7 +31,7 @@ import type {
   StickId,
 } from './types/controller';
 
-type View = 'connect' | 'bench' | 'test' | 'outputs' | 'tools' | 'results' | 'report';
+type View = 'connect' | 'bench' | 'test' | 'outputs' | 'tools' | 'ir' | 'results' | 'report';
 type CaptureTestId = 'drift' | 'range' | 'snapback' | 'stationary' | 'motion' | 'packets';
 
 interface TestDefinition {
@@ -360,6 +361,13 @@ export default function App() {
               Colours
             </button>
             <button
+              className={`workspace-tab ir-tab ${view === 'ir' ? 'active' : ''}`.trim()}
+              onClick={() => setView('ir')}
+              aria-current={view === 'ir' ? 'page' : undefined}
+            >
+              IR Camera
+            </button>
+            <button
               className={`workspace-tab test-tab ${
                 view === 'bench' || view === 'test' || view === 'outputs' ? 'active' : ''
               }`.trim()}
@@ -471,6 +479,21 @@ export default function App() {
               }
               initialColors={controller.colors}
               onColorsChange={controller.setColors}
+            />
+          </PageFrame>
+        )}
+
+        {identity && view === 'ir' && (
+          <PageFrame
+            eyebrow="Infrared sensor"
+            title="IR camera"
+            lede="View the right Joy-Con camera and check that it reacts."
+            className="ir-page-heading"
+          >
+            <IrCameraTool
+              identity={identity}
+              capability={controller.adapter.irCamera}
+              preview={previewActive}
             />
           </PageFrame>
         )}

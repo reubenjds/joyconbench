@@ -12,6 +12,7 @@ import {
 } from '../protocol/calibration';
 import { decodeStandardFullReport } from '../protocol/decoder';
 import {
+  INPUT_REPORT_NFC_IR,
   INPUT_REPORT_STANDARD_FULL,
   SUBCOMMAND_ENABLE_IMU,
   SUBCOMMAND_ENABLE_VIBRATION,
@@ -33,6 +34,7 @@ import type {
   SettingsProgress,
 } from '../types/controller';
 import { WebHIDTransport } from '../hid/WebHIDTransport';
+import { NintendoIrCamera } from './NintendoIrCamera';
 import { MAX_SPI_TRANSFER_BYTES } from '../protocol/nintendo';
 import {
   COLOR_ADDRESS,
@@ -52,8 +54,15 @@ export class NintendoControllerAdapter implements ControllerAdapter {
   private calibration: ControllerCalibration = structuredClone(NOMINAL_CONTROLLER_CALIBRATION);
   private readonly sampleListeners = new Set<SampleListener>();
   private unsubscribeTransport: (() => void) | null = null;
+  private readonly irCameraSession: NintendoIrCamera;
 
-  constructor(private readonly transport = new WebHIDTransport()) {}
+  constructor(private readonly transport = new WebHIDTransport()) {
+    this.irCameraSession = new NintendoIrCamera(transport, () => this.identity?.kind ?? null);
+  }
+
+  get irCamera() {
+    return this.identity?.kind === 'joycon-right' ? this.irCameraSession : undefined;
+  }
 
   ownsDevice(device: HIDDevice) {
     return this.transport.device === device;
@@ -73,7 +82,11 @@ export class NintendoControllerAdapter implements ControllerAdapter {
       connection: this.transport.connectionKind(),
     };
     this.unsubscribeTransport = this.transport.subscribe((event) => {
-      if (event.reportId !== INPUT_REPORT_STANDARD_FULL || !this.identity) return;
+      if (
+        (event.reportId !== INPUT_REPORT_STANDARD_FULL && event.reportId !== INPUT_REPORT_NFC_IR) ||
+        !this.identity
+      )
+        return;
       try {
         const sample = decodeStandardFullReport(
           event.reportId,
@@ -92,6 +105,7 @@ export class NintendoControllerAdapter implements ControllerAdapter {
   }
 
   async disconnect() {
+    await this.irCameraSession.stop();
     this.unsubscribeTransport?.();
     this.unsubscribeTransport = null;
     try {

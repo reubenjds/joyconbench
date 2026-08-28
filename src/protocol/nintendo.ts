@@ -1,13 +1,17 @@
 export const INPUT_REPORT_STANDARD_FULL = 0x30;
+export const INPUT_REPORT_NFC_IR = 0x31;
 export const INPUT_REPORT_SUBCOMMAND_REPLY = 0x21;
 
 export const OUTPUT_REPORT_SUBCOMMAND = 0x01;
 export const OUTPUT_REPORT_RUMBLE = 0x10;
+export const OUTPUT_REPORT_MCU = 0x11;
 
 export const SUBCOMMAND_DEVICE_INFO = 0x02;
 export const SUBCOMMAND_SET_INPUT_MODE = 0x03;
 export const SUBCOMMAND_SPI_READ = 0x10;
 export const SUBCOMMAND_SPI_WRITE = 0x11;
+export const SUBCOMMAND_SET_MCU_CONFIG = 0x21;
+export const SUBCOMMAND_SET_MCU_STATE = 0x22;
 export const SUBCOMMAND_SET_PLAYER_LEDS = 0x30;
 export const SUBCOMMAND_ENABLE_IMU = 0x40;
 export const SUBCOMMAND_ENABLE_VIBRATION = 0x48;
@@ -17,6 +21,8 @@ export const SAFE_SUBCOMMANDS = new Set([
   SUBCOMMAND_SET_INPUT_MODE,
   SUBCOMMAND_SPI_READ,
   SUBCOMMAND_SPI_WRITE,
+  SUBCOMMAND_SET_MCU_CONFIG,
+  SUBCOMMAND_SET_MCU_STATE,
   SUBCOMMAND_SET_PLAYER_LEDS,
   SUBCOMMAND_ENABLE_IMU,
   SUBCOMMAND_ENABLE_VIBRATION,
@@ -67,6 +73,23 @@ export function buildSubcommandPacket(counter: number, subcommand: number, paylo
   if (!SAFE_SUBCOMMANDS.has(subcommand)) {
     throw new Error(`Blocked unsafe Nintendo subcommand 0x${subcommand.toString(16)}`);
   }
+  if (subcommand === SUBCOMMAND_SET_MCU_CONFIG && payload.length !== 38) {
+    throw new Error('MCU configuration commands must contain exactly 38 bytes.');
+  }
+  if (
+    subcommand === SUBCOMMAND_SET_MCU_STATE &&
+    (payload.length !== 1 || (payload[0] !== 0x00 && payload[0] !== 0x01))
+  ) {
+    throw new Error('MCU state commands accept only suspend or resume.');
+  }
+  return new Uint8Array([counter & 0x0f, ...NO_RUMBLE, subcommand, ...payload]);
+}
+
+export function buildMcuPacket(counter: number, subcommand: number, payload: Uint8Array) {
+  if (subcommand !== SUBCOMMAND_SET_INPUT_MODE) {
+    throw new Error(`Blocked unsupported MCU command 0x${subcommand.toString(16)}`);
+  }
+  if (payload.length !== 38) throw new Error('MCU commands must contain exactly 38 bytes.');
   return new Uint8Array([counter & 0x0f, ...NO_RUMBLE, subcommand, ...payload]);
 }
 

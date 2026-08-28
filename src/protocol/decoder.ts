@@ -11,7 +11,7 @@ import {
   type Vector3,
 } from '../types/controller';
 import { NOMINAL_CONTROLLER_CALIBRATION } from './calibration';
-import { INPUT_REPORT_STANDARD_FULL } from './nintendo';
+import { INPUT_REPORT_NFC_IR, INPUT_REPORT_STANDARD_FULL } from './nintendo';
 
 const ACCELEROMETER_G_PER_UNIT = 0.000244;
 const GYROSCOPE_DPS_PER_UNIT = 1 / 14.247;
@@ -118,7 +118,7 @@ export function decodeStandardFullReport(
   timestamp = performance.now(),
   calibration: ControllerCalibration = NOMINAL_CONTROLLER_CALIBRATION
 ): ControllerSample {
-  if (reportId !== INPUT_REPORT_STANDARD_FULL) {
+  if (reportId !== INPUT_REPORT_STANDARD_FULL && reportId !== INPUT_REPORT_NFC_IR) {
     throw new Error(`Unsupported input report 0x${reportId.toString(16)}`);
   }
   if (data.byteLength < 48) throw new Error('Malformed standard full input report');

@@ -28,6 +28,18 @@ The first byte of a standard full input report is a fast-running controller time
 informational context but is not treated as a one-step packet counter and is not used to infer dropped
 reports. Connection classification uses monotonic WebHID arrival timestamps instead.
 
+## IR camera cover check
+
+The IR camera tool is separate from diagnostic reports and does not create a saved result. It uses a
+fixed 80×60 grayscale image-transfer mode on an original right Joy-Con. Each measurement stage needs
+at least five complete frames. The on-screen check passes when the median brightness while covered
+is at least `12` grayscale levels higher than the uncovered median on the `0–255` scale.
+
+This relative response confirms that complete images arrive and the sensor reacts to reflected IR
+light. It does not measure focus, absolute sensitivity, depth, or compliance with a Nintendo service
+specification. Ambient infrared light, distance, and an incompletely covered camera window can make
+the check inconclusive.
+
 ## Sources
 
 - [Nintendo Switch Reverse Engineering: Bluetooth HID report format](https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/bluetooth_hid_notes.md)

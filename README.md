@@ -15,12 +15,16 @@ Browser-based diagnostics and colour settings tools for original Nintendo Switch
 - Printable, plain-text, and privacy-safe JSON reports
 - Retail colour presets and body/button colour editing
 - Compact and quick settings backup and restore
+- Live 80×60 grayscale IR camera viewer and guided sensor-response check for right Joy-Con
 
 ## Prerequisites
 
 - Node.js 24 and pnpm to run locally
 - Desktop Chrome, Edge, or another Chromium browser with WebHID
 - Original left or right Joy-Con over Bluetooth
+
+The IR camera tool requires an original right Joy-Con. Left Joy-Con controllers do not contain the
+infrared camera hardware.
 
 > Note: Safari, Firefox, iOS, third-party controllers, and Switch 2 controllers are not supported.
 
@@ -35,6 +39,9 @@ pnpm dev
 
 Controller samples stay in memory and are not uploaded. Reports exclude MAC addresses, serial
 numbers, raw packets, sample streams, and calibration values. See [PRIVACY.md](./PRIVACY.md).
+
+IR images are rendered directly from volatile browser memory. They are discarded when streaming
+stops and are never added to reports, backups, or downloads.
 
 Settings tools are limited to documented colour and calibration regions. Backups include a checksum
 and controller type; erase and firmware commands are blocked.

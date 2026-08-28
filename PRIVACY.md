@@ -5,6 +5,10 @@ Live WebHID reports and diagnostic samples are processed locally and kept in bou
 for the current session. Choosing **Start again**, disconnecting, or closing the page clears that
 session data.
 
+The right Joy-Con IR viewer assembles grayscale images only in volatile browser memory. Images are
+drawn directly to the on-screen canvas, discarded when streaming stops, and excluded from diagnostic
+reports, settings backups, downloads, and network requests.
+
 ## Diagnostic reports
 
 Exported reports contain aggregate measurements, interpretations, controller type, connection kind,
