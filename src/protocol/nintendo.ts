@@ -5,6 +5,8 @@ export const INPUT_REPORT_SUBCOMMAND_REPLY = 0x21;
 export const OUTPUT_REPORT_SUBCOMMAND = 0x01;
 export const OUTPUT_REPORT_RUMBLE = 0x10;
 export const OUTPUT_REPORT_MCU = 0x11;
+export const MCU_COMMAND_GET_STATE = 0x01;
+export const MCU_COMMAND_SET_REPORT_MODE = 0x03;
 
 export const SUBCOMMAND_DEVICE_INFO = 0x02;
 export const SUBCOMMAND_SET_INPUT_MODE = 0x03;
@@ -86,7 +88,7 @@ export function buildSubcommandPacket(counter: number, subcommand: number, paylo
 }
 
 export function buildMcuPacket(counter: number, subcommand: number, payload: Uint8Array) {
-  if (subcommand !== SUBCOMMAND_SET_INPUT_MODE) {
+  if (subcommand !== MCU_COMMAND_GET_STATE && subcommand !== MCU_COMMAND_SET_REPORT_MODE) {
     throw new Error(`Blocked unsupported MCU command 0x${subcommand.toString(16)}`);
   }
   if (payload.length !== 38) throw new Error('MCU commands must contain exactly 38 bytes.');

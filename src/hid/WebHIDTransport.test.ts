@@ -8,10 +8,12 @@ class SpiDevice extends EventTarget {
   productId = 0x2006;
   productName = 'Joy-Con (L)';
   collections = [];
+  sentReports: Array<{ reportId: number; packet: Uint8Array }> = [];
 
   async open() {}
   async close() {}
   async sendReport(reportId: number, packet: Uint8Array) {
+    this.sentReports.push({ reportId, packet: packet.slice() });
     if (reportId !== 0x01) return;
     const subcommand = packet[9];
     const reply = new Uint8Array(50);
@@ -79,5 +81,24 @@ describe('WebHID settings transactions', () => {
     await expect(transport.close()).rejects.toThrow(/close failed/i);
 
     expect(transport.device).toBeNull();
+  });
+
+  it('allows only the bounded MCU status and IR polling commands', async () => {
+    const transport = new WebHIDTransport();
+    const device = new SpiDevice();
+    await transport.open(device as unknown as HIDDevice);
+
+    await transport.sendMcuCommand(0x01, new Uint8Array(38));
+    await transport.sendMcuCommand(0x03, new Uint8Array(38));
+
+    expect(
+      device.sentReports.slice(-2).map(({ reportId, packet }) => [reportId, packet[9]])
+    ).toEqual([
+      [0x11, 0x01],
+      [0x11, 0x03],
+    ]);
+    await expect(transport.sendMcuCommand(0x02, new Uint8Array(38))).rejects.toThrow(
+      /unsupported MCU command/i
+    );
   });
 });

@@ -2,6 +2,8 @@ import { WebHIDTransport } from '../hid/WebHIDTransport';
 import {
   INPUT_REPORT_NFC_IR,
   INPUT_REPORT_STANDARD_FULL,
+  MCU_COMMAND_GET_STATE,
+  MCU_COMMAND_SET_REPORT_MODE,
   SUBCOMMAND_SET_INPUT_MODE,
   SUBCOMMAND_SET_MCU_CONFIG,
   SUBCOMMAND_SET_MCU_STATE,
@@ -27,8 +29,6 @@ import type {
   IrStreamStats,
 } from '../types/controller';
 
-const MCU_POLL_SUBCOMMAND = 0x03;
-const MCU_STATUS_SUBCOMMAND = 0x01;
 const MCU_MODE_STANDBY = 0x01;
 const MCU_MODE_IR = 0x05;
 
@@ -80,7 +80,7 @@ export class NintendoIrCamera implements IrCameraCapability {
       await this.configureRegisters(1);
       await this.configureRegisters(2);
       this.streaming = true;
-      await this.transport.sendMcuCommand(MCU_POLL_SUBCOMMAND, buildIrFragmentPoll(0));
+      await this.transport.sendMcuCommand(MCU_COMMAND_SET_REPORT_MODE, buildIrFragmentPoll(0));
     } catch (error) {
       await this.restoreStandardMode();
       throw new Error(
@@ -108,7 +108,7 @@ export class NintendoIrCamera implements IrCameraCapability {
         ...payload,
       ]);
       if (step === 1 && attempt === 0) {
-        await this.transport.sendMcuCommand(MCU_POLL_SUBCOMMAND, buildIrHandshakePoll());
+        await this.transport.sendMcuCommand(MCU_COMMAND_SET_REPORT_MODE, buildIrHandshakePoll());
       }
       if (reply[0] === 0x23 || (reply[0] === 0x13 && (step === 2 || reply[2] === 0x07))) return;
     }
@@ -136,7 +136,7 @@ export class NintendoIrCamera implements IrCameraCapability {
         500
       );
       try {
-        await this.transport.sendMcuCommand(MCU_STATUS_SUBCOMMAND, new Uint8Array(38));
+        await this.transport.sendMcuCommand(MCU_COMMAND_GET_STATE, new Uint8Array(38));
         await waiter.promise;
         return;
       } catch {
@@ -199,7 +199,7 @@ export class NintendoIrCamera implements IrCameraCapability {
       .then(async () => {
         if (!this.running || !this.streaming) return;
         await this.transport.sendMcuCommand(
-          MCU_POLL_SUBCOMMAND,
+          MCU_COMMAND_SET_REPORT_MODE,
           buildIrFragmentPoll(fragment, resend)
         );
       })
