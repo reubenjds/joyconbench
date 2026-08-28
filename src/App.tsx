@@ -439,6 +439,7 @@ export default function App() {
             test={TESTS.find((test) => test.id === selectedTest)!}
             sticks={activeSticks}
             samples={controller.samplesRef.current}
+            result={resultForTest(selectedTest, results)}
             running={running}
             complete={runComplete}
             motionStep={motionStep}
@@ -733,7 +734,11 @@ function BenchView({
               <span className="sticker">Live check</span>
               <h2>Button checklist</h2>
             </div>
-            {buttonResult && <StatusLabel status={buttonResult.status}>Saved</StatusLabel>}
+            {buttonResult && (
+              <StatusLabel status={buttonResult.status}>
+                {testOutcomeLabel(buttonResult.status)}
+              </StatusLabel>
+            )}
           </div>
           <p>
             Pressed controls flash when clicked. Clear the board whenever you want another pass.
@@ -804,6 +809,7 @@ function TestView({
   test,
   sticks,
   samples,
+  result,
   running,
   complete,
   motionStep,
@@ -813,6 +819,7 @@ function TestView({
   test: TestDefinition;
   sticks: StickId[];
   samples: ControllerSample[];
+  result?: DiagnosticResult;
   running: boolean;
   complete: boolean;
   motionStep: number;
@@ -845,9 +852,17 @@ function TestView({
           {running ? 'Capturing…' : action}
         </Button>
       </div>
-      {complete && (
-        <div className="capture-complete" role="status">
-          Result saved. Run it again or choose another test.
+      {complete && result && (
+        <div className={`capture-result capture-result-${result.status}`} role="status">
+          <div className="capture-result-heading">
+            <div>
+              <span className="capture-result-label">Test result</span>
+              <strong>{testOutcomeLabel(result.status)}</strong>
+            </div>
+            <StatusLabel status={result.status}>{resultLabel(result.status)}</StatusLabel>
+          </div>
+          <p>{result.interpretation}</p>
+          <p className="capture-result-next">Result saved. Run it again or choose another test.</p>
         </div>
       )}
       <div className={`live-field ${isImuTest ? 'imu-field' : ''}`.trim()}>
@@ -927,7 +942,11 @@ function OutputView({
                   </Button>
                 </div>
               )}
-              {recorded && <StatusLabel status={recorded.status}>Recorded</StatusLabel>}
+              {recorded && (
+                <StatusLabel status={recorded.status}>
+                  {testOutcomeLabel(recorded.status)}
+                </StatusLabel>
+              )}
             </Panel>
           );
         })}
@@ -1227,6 +1246,12 @@ function resultLabel(status: DiagnosticResult['status']) {
   if (status === 'potential-issue') return 'Potential issue';
   if (status === 'check-again') return 'Check again';
   return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function testOutcomeLabel(status: DiagnosticResult['status']) {
+  if (status === 'pass') return 'Success';
+  if (status === 'potential-issue') return 'Failure';
+  return 'Inconclusive';
 }
 
 function captureTestForResult(testId: string): CaptureTestId | null {

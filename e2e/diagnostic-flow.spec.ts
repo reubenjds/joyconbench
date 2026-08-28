@@ -223,7 +223,10 @@ test('asks for a retry before counting a concerning capture as an issue', async 
   const gyroCard = page.getByRole('article').filter({ hasText: 'Gyroscope at rest' });
   await gyroCard.getByRole('button').click();
   await page.getByRole('button', { name: 'Capture stationary gyro' }).click();
-  await expect(page.getByText('Result saved.')).toBeVisible({ timeout: 7000 });
+  const result = page.getByRole('status').filter({ hasText: 'Test result' });
+  await expect(result).toContainText('Inconclusive', { timeout: 7000 });
+  await expect(result).toContainText('Check again');
+  await expect(result).toContainText('Result saved.');
   await page.getByRole('button', { name: /Back to test suite/ }).click();
   await page.getByRole('button', { name: /View 1 result/ }).click();
 
