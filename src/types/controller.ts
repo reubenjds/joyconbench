@@ -155,9 +155,29 @@ export type Unsubscribe = () => void;
 export interface IrFrame {
   timestamp: number;
   sequence: number;
-  width: 80;
-  height: 60;
+  width: number;
+  height: number;
   pixels: Uint8Array;
+}
+
+export type IrResolution = '40x30' | '80x60' | '160x120' | '320x240';
+
+export interface IrCameraSettings {
+  resolution: IrResolution;
+  exposureMicroseconds: number;
+  digitalGain: number;
+  autoExposure: boolean;
+  farLedEnabled: boolean;
+  nearLedEnabled: boolean;
+  farLedIntensity: number;
+  nearLedIntensity: number;
+  flashlight: boolean;
+  strobe: boolean;
+  externalLightFilter: boolean;
+  horizontalFlip: boolean;
+  denoiseEnabled: boolean;
+  denoiseEdgeSmoothing: number;
+  denoiseColorInterpolation: number;
 }
 
 export interface IrStreamStats {
@@ -167,13 +187,22 @@ export interface IrStreamStats {
   malformedPackets: number;
   framesPerSecond: number;
   lastFrameAt: number | null;
+  averageIntensity: number | null;
+  whitePixels: number;
+  whitePixelsPercent: number;
+  ambientNoisePixels: number;
+  ambientNoiseRatio: number;
+  externalFilterIntensity: number;
+  exposureMicroseconds: number;
 }
 
 export type IrFrameListener = (frame: IrFrame, stats: IrStreamStats) => void;
 
 export interface IrCameraCapability {
-  start(): Promise<void>;
+  start(settings?: IrCameraSettings): Promise<void>;
   stop(): Promise<void>;
+  configure(settings: IrCameraSettings): Promise<void>;
+  settings(): IrCameraSettings;
   subscribe(listener: IrFrameListener): Unsubscribe;
   /** Ordered handshake and streaming trace for reporting a controller that refuses to start. */
   diagnostics(): string[];

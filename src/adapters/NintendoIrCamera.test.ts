@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { WebHIDTransport } from '../hid/WebHIDTransport';
 import {
+  DEFAULT_IR_SETTINGS,
   IR_FRAGMENT_BYTES,
   IR_FRAGMENT_COUNT,
   IR_PIXELS_OFFSET,
@@ -37,6 +38,7 @@ class ProtocolIrDevice extends EventTarget {
   /** Status polls answered with "initializing" before the MCU settles in standby. */
   bootPolls = 2;
   emptyReportsBeforeFragment = 0;
+  fragmentCount = IR_FRAGMENT_COUNT;
 
   async open() {}
   async close() {
@@ -80,7 +82,7 @@ class ProtocolIrDevice extends EventTarget {
     // 0x23 0x01: pick the IR mode and fragment count.
     if (payload[0] === 0x23 && payload[1] === 0x01) {
       if (this.mcuMode !== 0x05) return;
-      if (payload[3] !== IR_FRAGMENT_COUNT - 1) return;
+      this.fragmentCount = payload[3] + 1;
       this.irMode = payload[2];
       this.replySubcommand(0x21, new Uint8Array([0x0b]));
       return;
@@ -126,7 +128,7 @@ class ProtocolIrDevice extends EventTarget {
     }
     // A wrong acknowledgement stalls the real MCU, so ignore it here too.
     if (acknowledged !== this.lastSentFragment) return;
-    this.sendFragment((acknowledged + 1) % IR_FRAGMENT_COUNT);
+    this.sendFragment((acknowledged + 1) % this.fragmentCount);
   }
 
   private sendFragment(index: number) {
@@ -254,6 +256,18 @@ describe('Nintendo right Joy-Con IR camera', () => {
     await camera.start();
 
     await expect(frame).resolves.toHaveLength(80 * 60);
+    await camera.stop();
+  });
+
+  it('streams a complete frame at another sensor resolution', async () => {
+    const device = new ProtocolIrDevice();
+    const camera = await connect(device);
+    const frame = nextFrame(camera);
+
+    await camera.start({ ...DEFAULT_IR_SETTINGS, resolution: '40x30' });
+
+    await expect(frame).resolves.toHaveLength(40 * 30);
+    expect(device.fragmentCount).toBe(4);
     await camera.stop();
   });
 

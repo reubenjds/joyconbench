@@ -6,6 +6,7 @@ import type {
   IrFrameListener,
   IrStreamStats,
 } from '../types/controller';
+import { DEFAULT_IR_SETTINGS } from '../protocol/ir';
 import { IrCameraTool } from './IrCameraTool';
 
 const RIGHT_JOY_CON: ControllerIdentity = {
@@ -19,6 +20,8 @@ const RIGHT_JOY_CON: ControllerIdentity = {
 class FakeIrCapability implements IrCameraCapability {
   readonly start = vi.fn(async () => undefined);
   readonly stop = vi.fn(async () => undefined);
+  readonly configure = vi.fn(async () => undefined);
+  readonly settings = vi.fn(() => ({ ...DEFAULT_IR_SETTINGS }));
   readonly diagnostics = vi.fn(() => ['+0ms input mode: acknowledged on attempt 1']);
   private readonly listeners = new Set<IrFrameListener>();
   private completedFrames = 0;
@@ -37,6 +40,13 @@ class FakeIrCapability implements IrCameraCapability {
       malformedPackets: 0,
       framesPerSecond: 3.5,
       lastFrameAt: performance.now(),
+      averageIntensity: value,
+      whitePixels: 0,
+      whitePixelsPercent: 0,
+      ambientNoisePixels: 0,
+      ambientNoiseRatio: 0,
+      externalFilterIntensity: 0,
+      exposureMicroseconds: 300,
     };
     for (const listener of this.listeners) {
       listener(
@@ -104,5 +114,26 @@ describe('IR camera tool', () => {
       vi.advanceTimersByTime(2000);
     });
     expect(screen.getByText(/camera reacted clearly/i)).toBeInTheDocument();
+  });
+
+  it('offers extra palettes and applies sensor settings to a live stream', async () => {
+    const capability = new FakeIrCapability();
+    render(<IrCameraTool identity={RIGHT_JOY_CON} capability={capability} preview={false} />);
+
+    fireEvent.change(screen.getByLabelText('Colour scale'), { target: { value: 'viridis' } });
+    expect(screen.getByLabelText('Colour scale')).toHaveValue('viridis');
+    fireEvent.change(screen.getByLabelText('Resolution'), { target: { value: '160x120' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start camera' }));
+    await act(async () => Promise.resolve());
+    fireEvent.click(screen.getByRole('button', { name: 'Apply live' }));
+    await act(async () => Promise.resolve());
+
+    expect(capability.start).toHaveBeenCalledWith(
+      expect.objectContaining({ resolution: '160x120' })
+    );
+    expect(capability.configure).toHaveBeenCalledWith(
+      expect.objectContaining({ resolution: '160x120' })
+    );
   });
 });

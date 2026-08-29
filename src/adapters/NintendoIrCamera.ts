@@ -10,10 +10,10 @@ import {
   SUBCOMMAND_SET_MCU_STATE,
 } from '../protocol/nintendo';
 import {
-  IR_HEIGHT,
+  DEFAULT_IR_SETTINGS,
   IR_MCU_PAYLOAD_BYTES,
   IR_MODE_IMAGE_TRANSFER,
-  IR_WIDTH,
+  IR_RESOLUTION_MODES,
   MCU_ACK_CONFIG_WRITE,
   MCU_ACK_IR_MODE_SET,
   MCU_ACK_REGISTERS_SET,
@@ -27,17 +27,21 @@ import {
   MCU_REPORT_STATE,
   IrFrameAssembler,
   buildAcknowledgementPoll,
+  buildExposureRegisterConfig,
   buildIrFragmentPoll,
   buildIrHandshakePoll,
   buildIrModeConfig,
   buildIrRegisterConfig,
   buildMcuModeConfig,
+  normalizeIrSettings,
   parseIrFragment,
   type IrAcknowledgement,
+  type IrFragmentTelemetry,
 } from '../protocol/ir';
 import type {
   ControllerKind,
   IrCameraCapability,
+  IrCameraSettings,
   IrFrameListener,
   IrStreamStats,
 } from '../types/controller';
@@ -82,7 +86,7 @@ interface McuConfigStage {
 export class NintendoIrCamera implements IrCameraCapability {
   private readonly listeners = new Set<IrFrameListener>();
   private readonly waiters = new Set<InputWaiter>();
-  private readonly assembler = new IrFrameAssembler();
+  private assembler = createAssembler(DEFAULT_IR_SETTINGS);
   private readonly log: string[] = [];
   private unsubscribeTransport: (() => void) | null = null;
   private running = false;
@@ -92,6 +96,8 @@ export class NintendoIrCamera implements IrCameraCapability {
   private pollQueue: Promise<void> = Promise.resolve();
   private frameTimes: number[] = [];
   private stats = emptyStats();
+  private currentSettings = { ...DEFAULT_IR_SETTINGS };
+  private lastAutoExposureAt = 0;
 
   private readonly timings: IrCameraTimings;
 
@@ -103,20 +109,25 @@ export class NintendoIrCamera implements IrCameraCapability {
     this.timings = { ...DEFAULT_TIMINGS, ...timings };
   }
 
-  async start() {
+  async start(settings: IrCameraSettings = this.currentSettings) {
     if (this.controllerKind() !== 'joycon-right') {
       throw new Error('The IR camera is available only on an original right Joy-Con.');
     }
     if (this.running) return;
 
+    this.currentSettings = normalizeIrSettings(settings);
+    const mode = IR_RESOLUTION_MODES[this.currentSettings.resolution];
+    this.assembler = createAssembler(this.currentSettings);
+
     this.running = true;
     this.streaming = false;
     this.sequence = 0;
-    this.stats = emptyStats();
+    this.stats = emptyStats(this.currentSettings.exposureMicroseconds);
     this.frameTimes = [];
     this.assembler.reset();
     this.log.length = 0;
     this.startedAt = performance.now();
+    this.lastAutoExposureAt = 0;
     this.unsubscribeTransport = this.transport.subscribe(this.handleInputReport);
 
     try {
@@ -137,28 +148,31 @@ export class NintendoIrCamera implements IrCameraCapability {
         accept: (reply) => reply[0] === MCU_REPORT_STATE,
       });
       await this.pollForMcuMode(MCU_MODE_IR, 'MCU in IR mode');
-      // 5. Select image transfer and the fragment count for one 80x60 frame.
-      await this.configureMcu(buildIrModeConfig(), {
+      // 5. Select image transfer and the fragment count for the requested frame size.
+      await this.configureMcu(buildIrModeConfig(mode.fragmentCount), {
         stage: 'IR image transfer',
         accept: (reply) => reply[0] === MCU_ACK_IR_MODE_SET,
       });
       // 6. Sensor registers. The first group is confirmed by an IR status report, which has to be
       //    requested explicitly; the second group ends with the "finalize config" register.
-      await this.configureMcu(buildIrRegisterConfig(1), {
+      await this.configureMcu(buildIrRegisterConfig(1, this.currentSettings), {
         stage: 'IR registers 1',
         after: () =>
           this.transport.sendMcuCommand(MCU_COMMAND_SET_REPORT_MODE, buildIrHandshakePoll()),
         accept: isImageTransferStatus,
         fallback: (reply) => reply[0] === MCU_ACK_CONFIG_WRITE,
       });
-      await this.configureMcu(buildIrRegisterConfig(2), {
+      await this.configureMcu(buildIrRegisterConfig(2, this.currentSettings), {
         stage: 'IR registers 2',
         accept: (reply) => isImageTransferStatus(reply) || reply[0] === MCU_ACK_CONFIG_WRITE,
       });
       // 7. The first acknowledgement starts the fragment stream.
       this.streaming = true;
-      await this.transport.sendMcuCommand(MCU_COMMAND_SET_REPORT_MODE, buildIrFragmentPoll(0));
-      this.record('streaming started');
+      await this.transport.sendMcuCommand(
+        MCU_COMMAND_SET_REPORT_MODE,
+        buildIrFragmentPoll(0, false, mode.fragmentCount)
+      );
+      this.record(`streaming started at ${mode.width}x${mode.height}`);
     } catch (error) {
       this.record(`startup failed: ${describe(error)}`);
       await this.restoreStandardMode();
@@ -173,6 +187,52 @@ export class NintendoIrCamera implements IrCameraCapability {
   async stop() {
     if (!this.running && !this.unsubscribeTransport) return;
     await this.restoreStandardMode();
+  }
+
+  async configure(settings: IrCameraSettings) {
+    const next = normalizeIrSettings(settings);
+    if (!this.running) {
+      this.currentSettings = next;
+      return;
+    }
+    if (next.resolution !== this.currentSettings.resolution) {
+      await this.stop();
+      await this.start(next);
+      return;
+    }
+
+    this.streaming = false;
+    await this.pollQueue.catch(() => undefined);
+    this.currentSettings = next;
+    this.stats.exposureMicroseconds = next.exposureMicroseconds;
+    this.assembler.reset();
+    try {
+      await this.configureMcu(buildIrRegisterConfig(1, next), {
+        stage: 'live IR settings 1',
+        after: () =>
+          this.transport.sendMcuCommand(MCU_COMMAND_SET_REPORT_MODE, buildIrHandshakePoll()),
+        accept: isImageTransferStatus,
+        fallback: (reply) => reply[0] === MCU_ACK_CONFIG_WRITE,
+      });
+      await this.configureMcu(buildIrRegisterConfig(2, next), {
+        stage: 'live IR settings 2',
+        accept: (reply) => isImageTransferStatus(reply) || reply[0] === MCU_ACK_CONFIG_WRITE,
+      });
+      this.streaming = true;
+      await this.transport.sendMcuCommand(
+        MCU_COMMAND_SET_REPORT_MODE,
+        buildIrFragmentPoll(0, false, this.assembler.fragmentCount)
+      );
+      this.record('live settings applied');
+    } catch (error) {
+      this.record(`live settings failed: ${describe(error)}`);
+      await this.restoreStandardMode();
+      throw new Error(`The IR settings could not be applied: ${describe(error)}`);
+    }
+  }
+
+  settings() {
+    return { ...this.currentSettings };
   }
 
   subscribe(listener: IrFrameListener) {
@@ -282,7 +342,7 @@ export class NintendoIrCamera implements IrCameraCapability {
     }
 
     this.stats.receivedPackets += 1;
-    const fragment = parseIrFragment(event.data);
+    const fragment = parseIrFragment(event.data, this.assembler.fragmentCount);
     if (!fragment) {
       this.stats.malformedPackets += 1;
       this.queueAcknowledgement(this.assembler.resend());
@@ -291,15 +351,23 @@ export class NintendoIrCamera implements IrCameraCapability {
     const result = this.assembler.accept(fragment);
     this.stats.droppedFragments += result.droppedFragments;
     this.queueAcknowledgement(result.acknowledgement);
-    if (result.frame) this.publishFrame(result.frame);
+    if (result.frame && result.telemetry) this.publishFrame(result.frame, result.telemetry);
   };
 
-  private publishFrame(pixels: Uint8Array) {
+  private publishFrame(pixels: Uint8Array, telemetry: IrFragmentTelemetry) {
     const timestamp = performance.now();
     this.frameTimes.push(timestamp);
     this.frameTimes = this.frameTimes.filter((value) => timestamp - value <= 5000);
     this.stats.completedFrames += 1;
     this.stats.lastFrameAt = timestamp;
+    this.stats.averageIntensity = telemetry.averageIntensity;
+    this.stats.whitePixels = telemetry.whitePixels;
+    const sampledPixels = Math.min(this.assembler.fragmentCount, 218) * 300;
+    this.stats.whitePixelsPercent = (telemetry.whitePixels * 100) / sampledPixels;
+    this.stats.ambientNoisePixels = telemetry.ambientNoisePixels;
+    this.stats.ambientNoiseRatio =
+      telemetry.ambientNoisePixels / Math.max(1, telemetry.whitePixels);
+    this.stats.externalFilterIntensity = telemetry.externalFilterIntensity;
     if (this.frameTimes.length > 1) {
       const seconds = (timestamp - this.frameTimes[0]) / 1000;
       this.stats.framesPerSecond = seconds > 0 ? (this.frameTimes.length - 1) / seconds : 0;
@@ -308,12 +376,34 @@ export class NintendoIrCamera implements IrCameraCapability {
     const frame = {
       timestamp,
       sequence: this.sequence++,
-      width: IR_WIDTH,
-      height: IR_HEIGHT,
+      width: this.assembler.width,
+      height: this.assembler.height,
       pixels,
     } as const;
     const stats = { ...this.stats };
     for (const listener of this.listeners) listener(frame, stats);
+    this.adjustAutoExposure(timestamp);
+  }
+
+  private adjustAutoExposure(timestamp: number) {
+    if (!this.currentSettings.autoExposure || timestamp - this.lastAutoExposureAt < 500) return;
+    const white = this.stats.whitePixelsPercent;
+    let nextExposure = this.currentSettings.exposureMicroseconds;
+    if (white === 0) nextExposure += 10;
+    else if (white > 5) nextExposure -= Math.floor(white / 4) * 20;
+    nextExposure = Math.min(600, Math.max(0, nextExposure));
+    if (nextExposure === this.currentSettings.exposureMicroseconds) return;
+    this.lastAutoExposureAt = timestamp;
+    this.currentSettings = { ...this.currentSettings, exposureMicroseconds: nextExposure };
+    this.stats.exposureMicroseconds = nextExposure;
+    this.pollQueue = this.pollQueue
+      .then(async () => {
+        if (!this.running || !this.streaming) return;
+        await this.transport.sendSubcommand(SUBCOMMAND_SET_MCU_CONFIG, [
+          ...buildExposureRegisterConfig(nextExposure),
+        ]);
+      })
+      .catch((error) => this.record(`auto exposure failed: ${describe(error)}`));
   }
 
   private queueAcknowledgement(acknowledgement: IrAcknowledgement) {
@@ -322,7 +412,7 @@ export class NintendoIrCamera implements IrCameraCapability {
         if (!this.running || !this.streaming) return;
         await this.transport.sendMcuCommand(
           MCU_COMMAND_SET_REPORT_MODE,
-          buildAcknowledgementPoll(acknowledgement)
+          buildAcknowledgementPoll(acknowledgement, this.assembler.fragmentCount)
         );
       })
       .catch((error) => {
@@ -424,7 +514,9 @@ function describe(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function emptyStats(): IrStreamStats {
+function emptyStats(
+  exposureMicroseconds = DEFAULT_IR_SETTINGS.exposureMicroseconds
+): IrStreamStats {
   return {
     receivedPackets: 0,
     completedFrames: 0,
@@ -432,5 +524,17 @@ function emptyStats(): IrStreamStats {
     malformedPackets: 0,
     framesPerSecond: 0,
     lastFrameAt: null,
+    averageIntensity: null,
+    whitePixels: 0,
+    whitePixelsPercent: 0,
+    ambientNoisePixels: 0,
+    ambientNoiseRatio: 0,
+    externalFilterIntensity: 0,
+    exposureMicroseconds,
   };
+}
+
+function createAssembler(settings: IrCameraSettings) {
+  const mode = IR_RESOLUTION_MODES[settings.resolution];
+  return new IrFrameAssembler(mode.width, mode.height, mode.fragmentCount);
 }
