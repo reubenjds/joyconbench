@@ -46,6 +46,7 @@ export function IrCameraTool({
   const [brightness, setBrightness] = useState<number | null>(null);
   const [phase, setPhase] = useState<CheckPhase>('idle');
   const [message, setMessage] = useState('Start the camera to inspect its live response.');
+  const [copiedLog, setCopiedLog] = useState(false);
 
   const setCheckPhase = (next: CheckPhase) => {
     phaseRef.current = next;
@@ -123,6 +124,18 @@ export function IrCameraTool({
     } catch (error) {
       setStreamState('error');
       setMessage(error instanceof Error ? error.message : 'The IR camera could not start.');
+    }
+  };
+
+  const copyDiagnostics = async () => {
+    if (!capability) return;
+    const log = capability.diagnostics().join('\n');
+    try {
+      await navigator.clipboard.writeText(log);
+      setCopiedLog(true);
+      window.setTimeout(() => setCopiedLog(false), 4000);
+    } catch {
+      setMessage('The log could not be copied. Check this page has clipboard permission.');
     }
   };
 
@@ -236,7 +249,18 @@ export function IrCameraTool({
               Stop camera
             </Button>
           )}
+          {streamState === 'error' && (
+            <Button className="button-secondary" onClick={copyDiagnostics}>
+              {copiedLog ? 'Log copied' : 'Copy start-up log'}
+            </Button>
+          )}
         </div>
+        {streamState === 'error' && (
+          <p className="tool-fine-print">
+            The start-up log lists each handshake stage and the last reply the Joy-Con sent. It
+            contains no controller identifiers.
+          </p>
+        )}
       </Panel>
 
       <Panel className="ir-check-panel color-red">
