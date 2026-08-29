@@ -29,7 +29,6 @@ import type {
   IrStreamStats,
 } from '../types/controller';
 
-const MCU_MODE_STANDBY = 0x01;
 const MCU_MODE_IR = 0x05;
 
 interface InputWaiter {
@@ -73,9 +72,12 @@ export class NintendoIrCamera implements IrCameraCapability {
     try {
       await this.transport.transactSubcommand(SUBCOMMAND_SET_INPUT_MODE, [INPUT_REPORT_NFC_IR]);
       await this.transport.transactSubcommand(SUBCOMMAND_SET_MCU_STATE, [0x01]);
-      await this.waitForMcuMode(MCU_MODE_STANDBY);
-      await this.transport.transactSubcommand(SUBCOMMAND_SET_MCU_CONFIG, [...buildMcuModeConfig()]);
-      await this.waitForMcuMode(MCU_MODE_IR);
+      const modeReply = await this.transport.transactSubcommand(SUBCOMMAND_SET_MCU_CONFIG, [
+        ...buildMcuModeConfig(),
+      ]);
+      if (!this.isMcuModeReply(modeReply, MCU_MODE_IR)) {
+        await this.waitForMcuMode(MCU_MODE_IR);
+      }
       await this.configureUntil(buildIrModeConfig(), (reply) => reply[0] === 0x0b);
       await this.configureRegisters(1);
       await this.configureRegisters(2);
@@ -144,6 +146,10 @@ export class NintendoIrCamera implements IrCameraCapability {
       }
     }
     throw new Error('The Joy-Con IR processor did not enter the expected mode.');
+  }
+
+  private isMcuModeReply(reply: Uint8Array, mode: number) {
+    return reply.length > 7 && reply[0] === MCU_REPORT_STATE && reply[7] === mode;
   }
 
   private readonly handleInputReport = (event: HIDInputReportEvent) => {

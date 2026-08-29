@@ -31,6 +31,10 @@ class ProtocolIrDevice extends EventTarget {
       if (subcommand === 0x21 && payload[0] === 0x23 && payload[1] === 0x04) {
         reply[14] = 0x23;
       }
+      if (subcommand === 0x21 && payload[0] === 0x21) {
+        reply[14] = 0x01;
+        reply[21] = this.mcuMode;
+      }
       queueMicrotask(() => this.emitReport(0x21, reply));
       return;
     }
@@ -79,7 +83,13 @@ class FakeIrTransport {
 
   async transactSubcommand(subcommand: number, payload: number[]) {
     this.transactions.push({ subcommand, payload });
-    if (subcommand === 0x21 && payload[0] === 0x21) this.mcuMode = 0x05;
+    if (subcommand === 0x21 && payload[0] === 0x21) {
+      this.mcuMode = 0x05;
+      const reply = new Uint8Array(8);
+      reply[0] = 0x01;
+      reply[7] = this.mcuMode;
+      return reply;
+    }
     if (subcommand === 0x21 && payload[0] === 0x23 && payload[1] === 0x01) {
       return new Uint8Array([0x0b]);
     }
