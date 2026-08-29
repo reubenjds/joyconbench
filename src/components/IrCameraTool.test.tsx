@@ -19,6 +19,7 @@ const RIGHT_JOY_CON: ControllerIdentity = {
 class FakeIrCapability implements IrCameraCapability {
   readonly start = vi.fn(async () => undefined);
   readonly stop = vi.fn(async () => undefined);
+  readonly diagnostics = vi.fn(() => ['+0ms input mode: acknowledged on attempt 1']);
   private readonly listeners = new Set<IrFrameListener>();
   private completedFrames = 0;
 

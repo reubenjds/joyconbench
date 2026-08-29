@@ -63,19 +63,53 @@ describe('Joy-Con IR protocol', () => {
     expect(frame?.at(-1)).toBe(15);
   });
 
-  it('requests the expected fragment after gaps and duplicates', () => {
+  it('acknowledges the fragment it received and asks for gaps once', () => {
     const assembler = new IrFrameAssembler();
     const fragment = (index: number) => ({
       index,
       pixels: new Uint8Array(IR_FRAGMENT_BYTES),
     });
 
-    expect(assembler.accept(fragment(0))).toMatchObject({ nextFragment: 1, resend: false });
-    expect(assembler.accept(fragment(0))).toMatchObject({ nextFragment: 1, resend: false });
+    // The acknowledgement names the fragment that arrived, not the one expected next.
+    expect(assembler.accept(fragment(0))).toMatchObject({
+      acknowledgement: { kind: 'ack', fragment: 0 },
+      droppedFragments: 0,
+    });
+    // A repeat is re-acknowledged so the MCU stops resending it.
+    expect(assembler.accept(fragment(0))).toMatchObject({
+      acknowledgement: { kind: 'ack', fragment: 0 },
+      droppedFragments: 0,
+    });
+    // A gap asks the MCU to resume from the missing fragment.
     expect(assembler.accept(fragment(3))).toMatchObject({
-      nextFragment: 1,
-      resend: true,
+      acknowledgement: { kind: 'resend', fragment: 1 },
       droppedFragments: 2,
     });
+    // But only once, otherwise the stream never advances.
+    expect(assembler.accept(fragment(5))).toMatchObject({
+      acknowledgement: { kind: 'ack', fragment: 5 },
+    });
+  });
+
+  it('re-acknowledges the last fragment for empty MCU reports', () => {
+    const assembler = new IrFrameAssembler();
+    expect(assembler.repeat()).toEqual({ kind: 'ack', fragment: IR_FRAGMENT_COUNT - 1 });
+    expect(assembler.resend()).toEqual({ kind: 'resend', fragment: 0 });
+
+    assembler.accept({ index: 0, pixels: new Uint8Array(IR_FRAGMENT_BYTES) });
+    expect(assembler.repeat()).toEqual({ kind: 'ack', fragment: 0 });
+    expect(assembler.resend()).toEqual({ kind: 'resend', fragment: 1 });
+  });
+
+  it('describes image transfer of sixteen fragments in the IR mode payload', () => {
+    const payload = buildIrModeConfig();
+    expect([...payload.slice(0, 8)]).toEqual([0x23, 0x01, 0x07, 0x0f, 0x00, 0x05, 0x00, 0x18]);
+  });
+
+  it('builds a resend request that names the next expected fragment', () => {
+    const resend = buildIrFragmentPoll(4, true);
+    expect(resend[1]).toBe(0x01);
+    expect(resend[2]).toBe(4);
+    expect(resend[3]).toBe(0);
   });
 });

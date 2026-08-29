@@ -8,18 +8,38 @@ export const MCU_REPORT_OFFSET = 48;
 export const MCU_MODE_OFFSET = 55;
 export const IR_FRAGMENT_OFFSET = 51;
 export const IR_PIXELS_OFFSET = 58;
+
+/** MCU report types found at byte 49 of an input report 0x31 (byte 48 once WebHID drops the id). */
+export const MCU_REPORT_BUSY = 0x00;
 export const MCU_REPORT_STATE = 0x01;
 export const MCU_REPORT_IR_DATA = 0x03;
+export const MCU_REPORT_IR_STATUS = 0x13;
+export const MCU_REPORT_EMPTY = 0xff;
+
+export const MCU_MODE_STANDBY = 0x01;
+export const MCU_MODE_IR = 0x05;
+export const IR_MODE_IMAGE_TRANSFER = 0x07;
+
+/** MCU configuration acknowledgements returned in a subcommand 0x21 reply. */
+export const MCU_ACK_IR_MODE_SET = 0x0b;
+export const MCU_ACK_REGISTERS_SET = MCU_REPORT_IR_STATUS;
+export const MCU_ACK_CONFIG_WRITE = 0x23;
 
 export interface IrFragment {
   index: number;
   pixels: Uint8Array;
 }
 
+/**
+ * The MCU only advances to the next fragment once the previous one is acknowledged, so every
+ * received report has to produce exactly one outgoing 0x11 packet.
+ */
+export type IrAcknowledgement =
+  { kind: 'ack'; fragment: number } | { kind: 'resend'; fragment: number };
+
 export interface IrAssemblyResult {
   frame: Uint8Array | null;
-  nextFragment: number;
-  resend: boolean;
+  acknowledgement: IrAcknowledgement;
   droppedFragments: number;
 }
 
@@ -61,14 +81,15 @@ export function calculateMcuCrc(bytes: Uint8Array) {
 
 export function buildMcuModeConfig() {
   const payload = new Uint8Array(IR_MCU_PAYLOAD_BYTES);
-  payload.set([0x21, 0x00, 0x05]);
+  payload.set([0x21, 0x00, MCU_MODE_IR]);
   payload[37] = calculateMcuCrc(payload.slice(1, 37));
   return payload;
 }
 
 export function buildIrModeConfig() {
   const payload = new Uint8Array(IR_MCU_PAYLOAD_BYTES);
-  payload.set([0x23, 0x01, 0x07, 0x0f, 0x00, 0x05, 0x00, 0x18]);
+  // 0x23 0x01: IR mode 0x07 (image transfer), 15 extra fragments, required MCU firmware 5.18.
+  payload.set([0x23, 0x01, IR_MODE_IMAGE_TRANSFER, IR_FRAGMENT_COUNT - 1, 0x00, 0x05, 0x00, 0x18]);
   payload[37] = calculateMcuCrc(payload.slice(1, 37));
   return payload;
 }
@@ -87,6 +108,7 @@ export function buildIrRegisterConfig(step: 1 | 2) {
   return payload;
 }
 
+/** Output report 0x11 command 0x03 with argument 0x02: report the current IR mode. */
 export function buildIrHandshakePoll() {
   const payload = new Uint8Array(IR_MCU_PAYLOAD_BYTES);
   payload[0] = 0x02;
@@ -94,6 +116,10 @@ export function buildIrHandshakePoll() {
   return payload;
 }
 
+/**
+ * Output report 0x11 command 0x03. An acknowledgement names the fragment that was just received.
+ * A resend request names the fragment the MCU should send next, not the one that went missing.
+ */
 export function buildIrFragmentPoll(fragment: number, resend = false) {
   if (!Number.isInteger(fragment) || fragment < 0 || fragment >= IR_FRAGMENT_COUNT) {
     throw new Error('Invalid IR fragment number.');
@@ -107,6 +133,10 @@ export function buildIrFragmentPoll(fragment: number, resend = false) {
   }
   finishPoll(payload);
   return payload;
+}
+
+export function buildAcknowledgementPoll(acknowledgement: IrAcknowledgement) {
+  return buildIrFragmentPoll(acknowledgement.fragment, acknowledgement.kind === 'resend');
 }
 
 export function parseIrFragment(data: DataView): IrFragment | null {
@@ -127,51 +157,68 @@ export function parseIrFragment(data: DataView): IrFragment | null {
 
 export class IrFrameAssembler {
   private readonly pixels = new Uint8Array(IR_WIDTH * IR_HEIGHT);
-  private expectedFragment = 0;
+  private lastFragment = IR_FRAGMENT_COUNT - 1;
+  private awaitingResend = false;
 
+  /** The fragment the MCU is expected to send next. */
   get nextFragment() {
-    return this.expectedFragment;
+    return (this.lastFragment + 1) % IR_FRAGMENT_COUNT;
   }
 
   reset() {
     this.pixels.fill(0);
-    this.expectedFragment = 0;
+    this.lastFragment = IR_FRAGMENT_COUNT - 1;
+    this.awaitingResend = false;
+  }
+
+  /** Re-acknowledge the last fragment, used when the MCU sends an empty IR report. */
+  repeat(): IrAcknowledgement {
+    return { kind: 'ack', fragment: this.lastFragment };
+  }
+
+  /** Ask the MCU to restart from the fragment we are waiting for. */
+  resend(): IrAcknowledgement {
+    return { kind: 'resend', fragment: this.nextFragment };
   }
 
   accept(fragment: IrFragment): IrAssemblyResult {
     if (fragment.pixels.length !== IR_FRAGMENT_BYTES) {
-      return this.result(null, true, 0);
-    }
-    if (fragment.index !== this.expectedFragment) {
-      const previous = (this.expectedFragment + IR_FRAGMENT_COUNT - 1) % IR_FRAGMENT_COUNT;
-      if (fragment.index === previous) return this.result(null, false, 0);
-      const dropped =
-        (fragment.index - this.expectedFragment + IR_FRAGMENT_COUNT) % IR_FRAGMENT_COUNT;
-      if (fragment.index === 0) {
-        this.reset();
-        this.store(fragment);
-        this.expectedFragment = 1;
-        return this.result(null, false, dropped);
-      }
-      return this.result(null, true, dropped || 1);
+      return { frame: null, acknowledgement: this.repeat(), droppedFragments: 0 };
     }
 
-    this.store(fragment);
-    if (fragment.index === IR_FRAGMENT_COUNT - 1) {
-      const frame = this.pixels.slice();
-      this.reset();
-      return this.result(frame, false, 0);
+    if (fragment.index === this.lastFragment) {
+      // The MCU repeated a fragment because it did not see our acknowledgement.
+      this.awaitingResend = false;
+      return { frame: null, acknowledgement: this.repeat(), droppedFragments: 0 };
     }
-    this.expectedFragment += 1;
-    return this.result(null, false, 0);
+
+    const expected = this.nextFragment;
+    const dropped = (fragment.index - expected + IR_FRAGMENT_COUNT) % IR_FRAGMENT_COUNT;
+    this.store(fragment);
+
+    if (fragment.index !== expected && !this.awaitingResend) {
+      // Ask for the gap once. Acknowledging instead would make the MCU move on without it.
+      this.awaitingResend = true;
+      this.lastFragment = fragment.index;
+      return {
+        frame: null,
+        acknowledgement: { kind: 'resend', fragment: expected },
+        droppedFragments: dropped,
+      };
+    }
+
+    this.awaitingResend = false;
+    this.lastFragment = fragment.index;
+    const frame = fragment.index === IR_FRAGMENT_COUNT - 1 ? this.pixels.slice() : null;
+    return {
+      frame,
+      acknowledgement: { kind: 'ack', fragment: fragment.index },
+      droppedFragments: dropped,
+    };
   }
 
   private store(fragment: IrFragment) {
     this.pixels.set(fragment.pixels, fragment.index * IR_FRAGMENT_BYTES);
-  }
-
-  private result(frame: Uint8Array | null, resend: boolean, droppedFragments: number) {
-    return { frame, nextFragment: this.expectedFragment, resend, droppedFragments };
   }
 }
 

@@ -175,6 +175,8 @@ export interface IrCameraCapability {
   start(): Promise<void>;
   stop(): Promise<void>;
   subscribe(listener: IrFrameListener): Unsubscribe;
+  /** Ordered handshake and streaming trace for reporting a controller that refuses to start. */
+  diagnostics(): string[];
 }
 
 export interface ControllerAdapter {
